@@ -1,0 +1,219 @@
+{
+  "_comment": "Pre-configured sell strategies for backtesting Z's Trading Methods",
+
+  "strategies": {
+
+    "conservative_trailing": {
+      "description": "Conservative risk management with 8% trailing stop, 15% profit target, and 60-day max hold",
+      "name": "conservative_trailing",
+      "combination_logic": "ANY",
+      "strategies": [
+        {
+          "class": "PercentageTrailingStopStrategy",
+          "params": {
+            "trailing_pct": 0.08,
+            "activate_after_profit_pct": 0.0
+          }
+        },
+        {
+          "class": "FixedProfitTargetStrategy",
+          "params": {
+            "target_pct": 0.15
+          }
+        },
+        {
+          "class": "TimedExitStrategy",
+          "params": {
+            "max_holding_days": 60
+          }
+        }
+      ]
+    },
+
+    "aggressive_atr": {
+      "description": "Aggressive ATR-based trailing with 2x multiplier and 20% profit target",
+      "name": "aggressive_atr",
+      "combination_logic": "ANY",
+      "strategies": [
+        {
+          "class": "ATRTrailingStopStrategy",
+          "params": {
+            "atr_period": 14,
+            "atr_multiplier": 2.0
+          }
+        },
+        {
+          "class": "FixedProfitTargetStrategy",
+          "params": {
+            "target_pct": 0.20
+          }
+        },
+        {
+          "class": "TimedExitStrategy",
+          "params": {
+            "max_holding_days": 45
+          }
+        }
+      ]
+    },
+
+    "indicator_based": {
+      "description": "Technical indicator-based exits (KDJ overbought + BBI reversal)",
+      "name": "indicator_based",
+      "combination_logic": "ANY",
+      "strategies": [
+        {
+          "class": "KDJOverboughtExitStrategy",
+          "params": {
+            "j_threshold": 85,
+            "wait_for_turndown": true
+          }
+        },
+        {
+          "class": "BBIReversalExitStrategy",
+          "params": {
+            "consecutive_declines": 3
+          }
+        },
+        {
+          "class": "PercentageTrailingStopStrategy",
+          "params": {
+            "trailing_pct": 0.10
+          }
+        },
+        {
+          "class": "TimedExitStrategy",
+          "params": {
+            "max_holding_days": 60
+          }
+        }
+      ]
+    },
+
+    "adaptive_volatility": {
+      "description": "Adaptive stop based on market volatility + profit target",
+      "name": "adaptive_volatility",
+      "combination_logic": "ANY",
+      "strategies": [
+        {
+          "class": "AdaptiveVolatilityExitStrategy",
+          "params": {
+            "volatility_period": 20,
+            "lookback_period": 120,
+            "low_vol_percentile": 30,
+            "high_vol_percentile": 70,
+            "low_vol_stop_pct": 0.05,
+            "normal_vol_stop_pct": 0.08,
+            "high_vol_stop_pct": 0.12
+          }
+        },
+        {
+          "class": "FixedProfitTargetStrategy",
+          "params": {
+            "target_pct": 0.15
+          }
+        },
+        {
+          "class": "TimedExitStrategy",
+          "params": {
+            "max_holding_days": 60
+          }
+        }
+      ]
+    },
+
+    "chandelier_3r": {
+      "description": "Chandelier stop (3x ATR) with 3R profit target",
+      "name": "chandelier_3r",
+      "combination_logic": "ANY",
+      "strategies": [
+        {
+          "class": "ChandelierStopStrategy",
+          "params": {
+            "lookback_period": 22,
+            "atr_period": 14,
+            "atr_multiplier": 3.0
+          }
+        },
+        {
+          "class": "MultipleRExitStrategy",
+          "params": {
+            "r_multiple": 3.0,
+            "atr_period": 14,
+            "stop_multiplier": 2.0
+          }
+        },
+        {
+          "class": "TimedExitStrategy",
+          "params": {
+            "max_holding_days": 60
+          }
+        }
+      ]
+    },
+
+    "zx_discipline": {
+      "description": "Exit based on ZX lines discipline breach + MA death cross",
+      "name": "zx_discipline",
+      "combination_logic": "ANY",
+      "strategies": [
+        {
+          "class": "ZXLinesCrossDownExitStrategy",
+          "params": {}
+        },
+        {
+          "class": "MADeathCrossExitStrategy",
+          "params": {
+            "fast_period": 5,
+            "slow_period": 20
+          }
+        },
+        {
+          "class": "PercentageTrailingStopStrategy",
+          "params": {
+            "trailing_pct": 0.08
+          }
+        },
+        {
+          "class": "TimedExitStrategy",
+          "params": {
+            "max_holding_days": 60
+          }
+        }
+      ]
+    },
+
+    "simple_percentage_stop": {
+      "description": "Simple 8% trailing stop with 60-day max hold (for baseline comparison)",
+      "name": "simple_percentage_stop",
+      "combination_logic": "ANY",
+      "strategies": [
+        {
+          "class": "PercentageTrailingStopStrategy",
+          "params": {
+            "trailing_pct": 0.08
+          }
+        },
+        {
+          "class": "TimedExitStrategy",
+          "params": {
+            "max_holding_days": 60
+          }
+        }
+      ]
+    },
+
+    "hold_forever": {
+      "description": "Never sell (buy-and-hold baseline)",
+      "name": "hold_forever",
+      "class": "SimpleHoldStrategy",
+      "params": {}
+    }
+  },
+
+  "_usage_notes": [
+    "Select a strategy by name when running backtest",
+    "Example: python scripts/run_backtest.py --sell-strategy conservative_trailing",
+    "You can also define custom strategies in code or JSON"
+  ]
+}

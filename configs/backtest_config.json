@@ -1,0 +1,9 @@
+"""
+Simple backtesting configuration for testing.
+"""
+
+{
+    "name": "simple_hold",
+    "class": "SimpleHoldStrategy",
+    "params": {}
+}
