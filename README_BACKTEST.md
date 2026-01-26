@@ -136,7 +136,6 @@ Calmar Ratio:                  3.21
 --- DRAWDOWN ---
 Max Drawdown:                -8.45%
 Max DD Duration:             12 days
-
 --- TRADE STATISTICS ---
 Total Trades:                    87
 Winning Trades:                  54
