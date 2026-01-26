@@ -8,23 +8,23 @@ including where parameters are provided, how data is processed, and where output
 
 ```mermaid
 flowchart TD
-  A[User] -->|Select buy selector(s), sell strategy, date range, capital, costs| B[Frontend UI]
-  B -->|POST /backtest/run| C[Backend API]
-  C -->|Validate request + load configs| D[Backtest Runner]
-  D -->|Read OHLCV data| E[data/ *.csv]
-  D -->|Read selector config| F[configs.json]
-  D -->|Read sell strategies| G[configs/sell_strategies.json]
-  D --> H[Backtest Engine]
-  H --> I[Execution Engine]
-  H --> J[Portfolio Manager]
-  H --> K[Performance Analyzer]
-  I -->|fills + costs| J
-  J -->|equity curve + trades| K
-  K -->|metrics + charts data| L[Results Payload]
-  L -->|JSON save| M[backtest_results/ *.json]
-  L -->|API response| C
-  C -->|Return results| B
-  B -->|Render charts + trades| N[UI: equity curve, trade list, metrics]
+  A["User"] -->|"Select buy selectors, sell strategy, date range, capital, costs"| B["Frontend UI"]
+  B -->|"POST /backtest/run"| C["Backend API"]
+  C -->|"Validate request and load configs"| D["Backtest Runner"]
+  D -->|"Read OHLCV data"| E["data/*.csv"]
+  D -->|"Read selector config"| F["configs.json"]
+  D -->|"Read sell strategies"| G["configs/sell_strategies.json"]
+  D --> H["Backtest Engine"]
+  H --> I["Execution Engine"]
+  H --> J["Portfolio Manager"]
+  H --> K["Performance Analyzer"]
+  I -->|"fills and costs"| J
+  J -->|"equity curve and trades"| K
+  K -->|"metrics and chart data"| L["Results Payload"]
+  L -->|"JSON save"| M["backtest_results/*.json"]
+  L -->|"API response"| C
+  C -->|"Return results"| B
+  B -->|"Render charts and trades"| N["UI: equity curve, trade list, metrics"]
 ```
 
 ## Directory and File Relationships
