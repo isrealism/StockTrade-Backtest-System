@@ -290,6 +290,12 @@ def main():
     if args.save_results:
         save_results(results, args.save_results)
 
+        # Save logs to .log file (same name as json result)
+        log_path = Path(args.save_results).with_suffix('.log')
+        with open(log_path, 'w', encoding='utf-8') as f:
+            f.write('\n'.join(engine.logs))
+        print(f"Logs saved to: {log_path}")
+
     print("\nBacktest complete!")
 
 

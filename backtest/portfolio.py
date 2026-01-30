@@ -445,6 +445,10 @@ class PortfolioManager:
         # Add proceeds (T+1 settlement)
         settlement_date = execution_date + timedelta(days=1)
         self.settlement_tracker.add_pending_proceeds(order.net_proceeds, settlement_date)
+        
+        # Add proceeds immediately (T+0 availability for trading)
+        # In A-shares, sell proceeds are immediately available for new buys
+        #self.cash += order.net_proceeds
 
         # Remove position
         del self.positions[order.code]

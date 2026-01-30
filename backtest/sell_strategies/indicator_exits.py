@@ -59,7 +59,7 @@ class KDJOverboughtExitStrategy(SellStrategy):
     ) -> Tuple[bool, str]:
         """Check if KDJ overbought."""
         # Calculate KDJ
-        kdj = self._compute_kdj(hist_data)
+        kdj = self._compute_kdj(hist_data )
 
         if kdj is None or len(kdj) == 0:
             return False, ""

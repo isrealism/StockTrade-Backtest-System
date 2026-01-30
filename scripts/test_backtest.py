@@ -24,9 +24,9 @@ def main():
 
     # Configuration
     data_dir = "./data"
-    buy_config_path = "./configs/configs.json"
-    start_date = "2024-01-01"
-    end_date = "2024-12-31"
+    buy_config_path = "./configs.json"
+    start_date = "2025-01-01"
+    end_date = "2025-01-31"
     initial_capital = 1000000
 
     # Simple hold strategy (for testing)
@@ -44,7 +44,7 @@ def main():
         start_date=start_date,
         end_date=end_date,
         initial_capital=initial_capital,
-        max_positions=10,
+        max_positions=20,
         position_sizing="equal_weight"
     )
 

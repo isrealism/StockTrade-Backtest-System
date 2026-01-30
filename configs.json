@@ -9,7 +9,7 @@
         "bbi_min_window": 20,
         "max_window": 120,
         "price_range_pct": 1,
-        "bbi_q_threshold": 0.5,
+        "bbi_q_threshold": 0.2,
         "j_q_threshold": 0.10
       }
     },
@@ -28,7 +28,7 @@
           "bbi_min_window": 20,
           "max_window": 120,
           "price_range_pct": 1,
-          "bbi_q_threshold": 0.5,
+          "bbi_q_threshold": 0.3,
           "j_q_threshold": 0.10
         }
       }
@@ -43,7 +43,7 @@
         "m": 5,
         "bbi_min_window": 2,
         "max_window": 120,
-        "bbi_q_threshold": 0.5,
+        "bbi_q_threshold": 0.2,
         "upper_rsv_threshold": 75,
         "lower_rsv_threshold":25
       }

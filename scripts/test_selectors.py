@@ -21,7 +21,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 import Selector
 
 
-def test_selector(selector_class, selector_name, params, data_dir, test_date, num_stocks=100):
+def test_selector(selector_class, selector_name, params, data_dir, test_date):
     """
     Test a single selector.
 
@@ -39,9 +39,9 @@ def test_selector(selector_class, selector_name, params, data_dir, test_date, nu
 
     # Load sample data (first N stocks)
     data = {}
-    csv_files = sorted(list(Path(data_dir).glob("*.csv")))[:num_stocks]
+    csv_files = sorted(list(Path(data_dir).glob("*.csv")))
 
-    print(f"Loading {num_stocks} stocks...")
+    print(f"Loading {len(csv_files)} stocks...")
 
     for csv_file in csv_files:
         try:
@@ -108,7 +108,7 @@ def main():
         config = json.load(f)
 
     # Use 2025 data for sufficient historical depth
-    test_date = "2025-02-01"
+    test_date = "2026-01-07"
     data_dir = Path(__file__).parent.parent / "data"
 
     print(f"Test date: {test_date}")

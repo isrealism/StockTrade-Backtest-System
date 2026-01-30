@@ -259,7 +259,7 @@ class T1SettlementTracker:
         """
         if settlement_date not in self.pending_proceeds:
             self.pending_proceeds[settlement_date] = 0.0
-        self.pending_proceeds[settlement_date] += amount
+        self.pending_proceeds[settlement_date] += amount        # 
 
     def freeze_position(self, code: str, settlement_date: datetime):
         """
