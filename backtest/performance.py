@@ -106,6 +106,11 @@ class PerformanceAnalyzer:
             monthly_returns['start_value']
         )
 
+        monthly_returns_dict = {
+            str(k): float(v)
+            for k, v in monthly_returns['return'].to_dict().items()
+        } if not monthly_returns.empty else {}
+
         return {
             'total_return': total_return,
             'total_return_pct': total_return * 100,
@@ -115,7 +120,7 @@ class PerformanceAnalyzer:
             'total_profit': final_value - self.initial_capital,
             'trading_days': len(self.equity_curve),
             'calendar_days': days,
-            'monthly_returns': monthly_returns['return'].to_dict() if not monthly_returns.empty else {}
+            'monthly_returns': monthly_returns_dict
         }
 
     def _calculate_risk_adjusted_metrics(self) -> Dict[str, Any]:

@@ -44,6 +44,21 @@ class ExecutionEngine:
         self.slippage_rate = slippage_rate
         self.min_commission = min_commission
 
+    def _get_price_limit_pct(self, code: str) -> float:
+        """
+        Get price limit percentage based on stock code.
+
+        Rules:
+        - Beijing Stock Exchange (8xx, 4xx, 92xx): 30%
+        - STAR Market (688) and ChiNext (300, 301): 20%
+        - Others: 10% (Note: ST stocks are 5% but require name check which is not available here)
+        """
+        if code.startswith(('8', '4', '92')):
+            return 0.30
+        elif code.startswith(('688', '300', '301')):
+            return 0.20
+        return 0.10
+
     def can_execute_order(
         self,
         order: Order,
@@ -67,18 +82,21 @@ class ExecutionEngine:
 
         open_price = current_data['open']
 
-        # Check ±10% price limit
-        upper_limit = prev_close * 1.099  # Allow 9.9% to account for rounding
-        lower_limit = prev_close * 0.901
+        # Determine price limit based on stock code
+        limit_pct = self._get_price_limit_pct(order.code)
+
+        # Check price limits (allow 0.1% buffer for rounding)
+        upper_limit = prev_close * (1 + limit_pct - 0.001)
+        lower_limit = prev_close * (1 - limit_pct + 0.001)
 
         if order.action == OrderAction.BUY:
-            # Cannot buy if price gapped up to upper limit
+            # Cannot buy if price gapped up to upper limit (limit up)
             if open_price >= upper_limit:
-                return False, f"Price at upper limit (+10%): {open_price:.2f} >= {upper_limit:.2f}"
+                return False, f"Price at upper limit (+{limit_pct*100:.0f}%): {open_price:.2f} >= {upper_limit:.2f}"
         else:  # SELL
-            # Cannot sell if price gapped down to lower limit
+            # Cannot sell if price gapped down to lower limit (limit down)
             if open_price <= lower_limit:
-                return False, f"Price at lower limit (-10%): {open_price:.2f} <= {lower_limit:.2f}"
+                return False, f"Price at lower limit (-{limit_pct*100:.0f}%): {open_price:.2f} <= {lower_limit:.2f}"
 
         return True, None
 
@@ -191,6 +209,31 @@ class ExecutionEngine:
             max_shares -= lot_size
 
         return 0
+
+    def estimate_buy_cost(self, shares: int, price: float) -> float:
+        """
+        Estimate total cost of a buy order including fees.
+
+        Args:
+            shares: Number of shares
+            price: Stock price
+
+        Returns:
+            Estimated total cost (price + slippage + commission)
+        """
+        # Effective price including slippage
+        effective_price = price * (1 + self.slippage_rate)
+
+        # Calculate cost
+        cost = shares * effective_price
+
+        # Calculate commission
+        commission = max(cost * self.commission_rate, self.min_commission)
+
+        # Total cost
+        total_cost = cost + commission
+
+        return total_cost
 
     def validate_data(self, data: pd.Series) -> bool:
         """

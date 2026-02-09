@@ -15,6 +15,34 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from backtest.engine import BacktestEngine
 import json
 
+def load_sell_strategy_by_name(strategy_name: str, config_path: str = "./configs/sell_strategies.json"):
+    """从配置文件中加载指定策略"""
+    
+    # 读取 JSON 文件
+    with open(config_path, 'r', encoding='utf-8') as f:
+        config_data = json.load(f)
+    
+    # 获取 strategies 字段
+    strategies = config_data.get('strategies', {})
+    
+    # 检查策略是否存在
+    if strategy_name not in strategies:
+        available = list(strategies.keys())
+        raise ValueError(f"策略 '{strategy_name}' 不存在。可用策略: {', '.join(available)}")
+    
+    # 获取策略配置
+    strategy_config = strategies[strategy_name]
+    
+    # 返回策略配置
+    if 'strategies' in strategy_config:
+        # 组合策略（如 conservative_trailing）
+        return strategy_config['strategies']
+    else:
+        # 单一策略（如 hold_forever）
+        return {
+            'class': strategy_config.get('class'),
+            'params': strategy_config.get('params', {})
+        }
 
 def main():
     """Run simple backtest test."""
@@ -26,16 +54,18 @@ def main():
     data_dir = "./data"
     buy_config_path = "./configs.json"
     start_date = "2025-01-01"
-    end_date = "2025-01-31"
+    end_date = "2025-01-10"
     initial_capital = 1000000
 
-    # Simple hold strategy (for testing)
-    sell_strategy_config = {
-        "name": "hold_forever",
-        "class": "SimpleHoldStrategy",
-        "params": {}
-    }
+    # ============ 指定策略名称 ============
+    strategy_name = "conservative_trailing"  # ← 修改这里选择不同策略
 
+    # 加载策略配置
+    sell_strategy_config = load_sell_strategy_by_name(
+    strategy_name, 
+    "./configs/sell_strategies.json"
+    )
+    
     # Initialize engine
     engine = BacktestEngine(
         data_dir=data_dir,

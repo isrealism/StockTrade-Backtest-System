@@ -105,30 +105,33 @@ class PortfolioManager:
         for code, position in self.positions.items():
             if code in market_data:
                 data = market_data[code]
-                position.update_highest_price(data['close'], data['high'])
+                if float(data.get('volume', 0)) == 0:
+                    continue
+                position.update_price_stats(
+                    date=date,
+                    close=float(data['close']),
+                    high=float(data['high']),
+                    low=float(data['low'])
+                )
                 position.increment_days_held()
 
     def can_open_new_position(self) -> bool:
         """
         Check if can open new position.
 
-        Checks both position limit and available cash.
+        Checks only position limit. Cash availability is checked per-signal
+        in calculate_position_size() because different stocks have different prices.
 
         Returns:
-            True if can open new position
+            True if position limit allows new position
         """
-        # Check position limit
+        # Check position limit only
         total_positions = len(self.positions) + self._count_pending_buy_orders()
         if total_positions >= self.max_positions:
             return False
 
-        # Check if we have any available cash
-        available_cash = self.get_available_cash()
-
-        # Need at least some cash to open position (min ~10k for 100 shares @ 10 RMB)
-        min_required_cash = 10000
-
-        return available_cash >= min_required_cash
+        # Cash availability is checked per-signal in calculate_position_size()
+        return True
 
     def _count_pending_buy_orders(self) -> int:
         """Count number of pending buy orders."""
@@ -142,7 +145,8 @@ class PortfolioManager:
         self,
         code: str,
         price: float,
-        market_data: Optional[pd.DataFrame] = None
+        market_data: Optional[pd.DataFrame] = None,
+        projected_cash: Optional[float] = None
     ) -> int:
         """
         Calculate position size based on sizing method.
@@ -159,7 +163,7 @@ class PortfolioManager:
             # Equal weight allocation based on AVAILABLE cash
             # Account for existing positions and pending orders
             total_positions = len(self.positions) + self._count_pending_buy_orders()
-            available_cash = self.get_available_cash()
+            available_cash = projected_cash if projected_cash is not None else self.get_available_cash()
 
             # Calculate allocation: distribute available cash among remaining slots
             remaining_slots = max(1, self.max_positions - total_positions + 1)
@@ -172,13 +176,20 @@ class PortfolioManager:
                 target_per_position,
                 price
             )
+
+            # Verify we can actually afford this
+            if shares > 0:
+                estimated_cost = self.execution_engine.estimate_buy_cost(shares, price)
+                if estimated_cost > available_cash:
+                    return 0
+
             return shares
 
         elif self.position_sizing == "risk_based":
             # Risk-based using ATR (if we have data)
             if market_data is None or len(market_data) < 14:
                 # Fallback to equal weight
-                return self.calculate_position_size(code, price, None)
+                return self.calculate_position_size(code, price, None, projected_cash=projected_cash)
 
             # Calculate ATR
             atr = self._calculate_atr(market_data, period=14)
@@ -191,7 +202,8 @@ class PortfolioManager:
             shares_for_risk = risk_per_position / stop_distance
 
             # Calculate max shares within cash limit
-            max_shares = self.execution_engine.calculate_max_shares(self.cash, price)
+            cash_limit = projected_cash if projected_cash is not None else self.cash
+            max_shares = self.execution_engine.calculate_max_shares(cash_limit, price)
 
             # Take minimum
             shares = min(int(shares_for_risk), max_shares)
@@ -250,13 +262,14 @@ class PortfolioManager:
         if code in self.positions:
             return None
 
-        # Calculate position size
-        shares = self.calculate_position_size(code, price, market_data)
+        # Calculate position size using projected cash for T+1
+        execution_date = signal_date + timedelta(days=1)
+        projected_cash = self.get_projected_cash(execution_date)
+        shares = self.calculate_position_size(code, price, market_data, projected_cash=projected_cash)
         if shares == 0:
             return None
 
         # Create order for T+1 execution
-        execution_date = signal_date + timedelta(days=1)
         order = Order(
             code=code,
             action=OrderAction.BUY,
@@ -395,8 +408,29 @@ class PortfolioManager:
 
     def _execute_buy(self, order: Order, execution_date: datetime):
         """Execute buy order and create position."""
+        # Paranoid check: if cash insufficient, this indicates a bug in position sizing
+        # Log error but don't crash the backtest
+        if self.cash < order.total_cost:
+            # This should not happen if position sizing is correct
+            # Log and return without executing
+            print(
+                f"WARNING: Insufficient cash for buy order {order.code}: "
+                f"cash={self.cash:.2f}, required={order.total_cost:.2f}. "
+                f"Order rejected."
+            )
+            order.fail()
+            return
+
         # Deduct cash
         self.cash -= order.total_cost
+
+        # Paranoid check after deduction (catch floating point errors)
+        if self.cash < -0.01:
+            # This is a serious bug - restore cash and fail order
+            self.cash += order.total_cost
+            print(f"ERROR: Cash went negative after deduction: {self.cash:.2f}. Order rejected.")
+            order.fail()
+            return
 
         # Create position
         position = Position(
@@ -471,6 +505,17 @@ class PortfolioManager:
             Available cash (excluding frozen cash)
         """
         return self.cash - self.settlement_tracker.get_total_frozen_cash()
+
+    def get_projected_cash(self, execution_date: datetime, buffer_pct: float = 0.98) -> float:
+        """
+        Get projected cash available on execution date (T+1).
+
+        Includes proceeds that will settle on execution_date.
+        Applies a safety buffer to reduce open-gap risk.
+        """
+        projected = self.cash
+        projected += self.settlement_tracker.pending_proceeds.get(execution_date, 0.0)
+        return projected * buffer_pct
 
     def get_position(self, code: str) -> Optional[Position]:
         """Get position for stock code."""

@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Backtest Platform</title>
+    <link rel="stylesheet" href="/static/styles.css" />
+  </head>
+  <body>
+    <div class="app">
+      <aside class="sidebar">
+        <div class="brand">
+          <span class="brand-mark">↯</span>
+          <div>
+            <div class="brand-title">Backtest Platform</div>
+            <div class="brand-sub">Z策略回测系统</div>
+          </div>
+        </div>
+        <nav class="nav">
+          <button class="nav-btn is-active">Start New Backtest</button>
+          <button class="nav-btn">Backtest Sessions</button>
+          <button class="nav-btn">Performance Charts</button>
+          <button class="nav-btn">Strategy Comparison</button>
+          <button class="nav-btn">User</button>
+        </nav>
+        <div class="sidebar-footer">
+          <div class="tiny">API Status</div>
+          <div id="api-status" class="status-pill">Checking...</div>
+        </div>
+      </aside>
+
+      <main class="main">
+        <section class="panel">
+          <header class="panel-header">
+            <div>
+              <h1>New Backtest Session</h1>
+              <p>配置你的选股器、卖出策略与资金管理规则。</p>
+            </div>
+            <div class="header-actions">
+              <button class="btn ghost" id="refresh-config">刷新配置</button>
+              <button class="btn ghost" id="load-templates">加载模板</button>
+            </div>
+          </header>
+
+          <div class="grid">
+            <div class="card">
+              <h3>Session Info</h3>
+              <label class="field">
+                <span>Session Name (Optional)</span>
+                <input id="session-name" type="text" placeholder="例如：KDJ回撤-2024Q4" />
+              </label>
+              <div class="field-row">
+                <label class="field">
+                  <span>Start Date</span>
+                  <input id="start-date" type="date" value="2024-01-01" />
+                </label>
+                <label class="field">
+                  <span>End Date</span>
+                  <input id="end-date" type="date" value="2024-12-31" />
+                </label>
+              </div>
+            </div>
+
+            <div class="card">
+              <h3>Stock Pool</h3>
+              <label class="field">
+                <span>Pool Type</span>
+                <select id="stock-pool-type">
+                  <option value="all">All Stock (全市场)</option>
+                  <option value="list">Custom CSV</option>
+                </select>
+              </label>
+              <label class="field">
+                <span>Import CSV (codes)</span>
+                <input id="stock-csv" type="file" accept=".csv" />
+              </label>
+              <div class="hint">CSV第一列填股票代码，如000001、600519。</div>
+              <div class="chip-row" id="stock-preview"></div>
+            </div>
+
+            <div class="card">
+              <h3>Capital & Position</h3>
+              <label class="field">
+                <span>Initial Capital</span>
+                <input id="initial-capital" type="number" value="1000000" />
+              </label>
+              <div class="field-row">
+                <label class="field">
+                  <span>Max Positions</span>
+                  <input id="max-positions" type="number" value="10" />
+                </label>
+                <label class="field">
+                  <span>Position Sizing</span>
+                  <select id="position-sizing">
+                    <option value="equal_weight">Equal Weight</option>
+                    <option value="risk_based">Risk Based</option>
+                  </select>
+                </label>
+              </div>
+              <label class="field">
+                <span>Lookback Days</span>
+                <input id="lookback-days" type="number" value="200" />
+              </label>
+            </div>
+          </div>
+
+          <div class="grid">
+            <div class="card">
+              <h3>Buy Selectors</h3>
+              <div id="selector-list" class="selector-list"></div>
+            </div>
+            <div class="card">
+              <h3>Sell Strategy</h3>
+              <label class="field">
+                <span>Strategy</span>
+                <select id="sell-strategy"></select>
+              </label>
+              <div id="sell-params" class="params"></div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <h3>Advanced Settings</h3>
+              <span class="tiny">手续费与滑点</span>
+            </div>
+            <div class="field-row">
+              <label class="field">
+                <span>Commission Rate</span>
+                <input id="commission-rate" type="number" step="0.0001" value="0.0003" />
+              </label>
+              <label class="field">
+                <span>Stamp Tax Rate</span>
+                <input id="stamp-tax-rate" type="number" step="0.0001" value="0.001" />
+              </label>
+              <label class="field">
+                <span>Slippage Rate</span>
+                <input id="slippage-rate" type="number" step="0.0001" value="0.001" />
+              </label>
+            </div>
+            <div class="actions">
+              <button class="btn ghost" id="save-template">Save as Template</button>
+              <button class="btn primary" id="run-backtest">Run Backtest</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel">
+          <header class="panel-header">
+            <div>
+              <h2>Backtest Progress</h2>
+              <p>实时查看进度与日志。</p>
+            </div>
+            <button class="btn ghost" id="stop-backtest">Stop Backtest</button>
+          </header>
+          <div class="progress">
+            <div class="progress-bar">
+              <div id="progress-fill" class="progress-fill"></div>
+            </div>
+            <div id="progress-label" class="progress-label">Waiting for start...</div>
+          </div>
+          <div class="log-panel" id="log-panel"></div>
+        </section>
+
+        <section class="panel">
+          <header class="panel-header">
+            <div>
+              <h2>Trading Results</h2>
+              <p>收益指标、交易明细与策略评分。</p>
+            </div>
+            <div class="header-actions">
+              <label class="field compact">
+                <span>Benchmark</span>
+                <select id="benchmark-select">
+                  <option value="">不对比</option>
+                  <option value="SSE">上证指数</option>
+                  <option value="CSI300">沪深300</option>
+                  <option value="CSI500">中证500</option>
+                  <option value="GEM">创业板指</option>
+                </select>
+              </label>
+            </div>
+          </header>
+
+          <div class="stat-grid">
+            <div class="stat-card">
+              <div class="stat-label">Total Trades</div>
+              <div id="stat-trades" class="stat-value">-</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">Win Rate</div>
+              <div id="stat-win" class="stat-value">-</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">Total Return</div>
+              <div id="stat-return" class="stat-value">-</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">Final Capital</div>
+              <div id="stat-capital" class="stat-value">-</div>
+            </div>
+          </div>
+
+          <div class="grid">
+            <div class="card chart-card">
+              <div class="card-header">
+                <h3>Cumulative Return Rate</h3>
+              </div>
+              <canvas id="chart-return"></canvas>
+            </div>
+            <div class="card chart-card">
+              <div class="card-header">
+                <h3>Equity Curve</h3>
+              </div>
+              <canvas id="chart-equity"></canvas>
+            </div>
+            <div class="card chart-card">
+              <div class="card-header">
+                <h3>Drawdown Analysis</h3>
+              </div>
+              <canvas id="chart-drawdown"></canvas>
+            </div>
+          </div>
+
+          <div class="grid">
+            <div class="card">
+              <h3>Strategy Rating</h3>
+              <div class="rating">
+                <div id="rating-score" class="rating-score">-</div>
+                <div class="rating-meta">
+                  <div class="rating-bar">
+                    <span id="rating-return"></span>
+                  </div>
+                  <div class="rating-bar">
+                    <span id="rating-risk"></span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="card">
+              <h3>Exit Reason Breakdown</h3>
+              <div id="exit-reasons" class="pill-group"></div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <h3>Trade Details</h3>
+              <div class="table-tools">
+                <select id="trade-filter">
+                  <option value="">All Reasons</option>
+                </select>
+                <select id="trade-sort">
+                  <option value="net_pnl_pct">Sort by Return</option>
+                  <option value="holding_days">Sort by Holding Days</option>
+                </select>
+              </div>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Symbol</th>
+                    <th>Entry Date</th>
+                    <th>Exit Date</th>
+                    <th>Holding Days</th>
+                    <th>Entry Price</th>
+                    <th>Exit Price</th>
+                    <th>Shares</th>
+                    <th>Return</th>
+                    <th>Amount</th>
+                    <th>Exit Reason</th>
+                  </tr>
+                </thead>
+                <tbody id="trade-table"></tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel">
+          <header class="panel-header">
+            <div>
+              <h2>History & Ranking</h2>
+              <p>查看历史回测任务与策略评分排名。</p>
+            </div>
+          </header>
+          <div class="grid">
+            <div class="card">
+              <h3>Recent Backtests</h3>
+              <div id="history-list" class="history-list"></div>
+            </div>
+            <div class="card">
+              <h3>Strategy Ranking</h3>
+              <div id="ranking-list" class="history-list"></div>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <script src="/static/app.js"></script>
+  </body>
+</html>

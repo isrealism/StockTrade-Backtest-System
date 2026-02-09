@@ -6,7 +6,7 @@ Defines abstract SellStrategy class and composite pattern for combining strategi
 
 from abc import ABC, abstractmethod
 from datetime import datetime
-from typing import Dict, Any, List, Tuple
+from typing import Union, Dict, Any, List, Tuple
 import pandas as pd
 
 from ..data_structures import Position
@@ -154,7 +154,7 @@ class SimpleHoldStrategy(SellStrategy):
         return "HoldForever"
 
 
-def create_sell_strategy(config: Dict[str, Any]) -> SellStrategy:
+def create_sell_strategy(config: Union[Dict[str, Any],List[Dict[str,Any]]]) -> SellStrategy:
     """
     Factory function to create sell strategy from configuration.
 
@@ -181,6 +181,26 @@ def create_sell_strategy(config: Dict[str, Any]) -> SellStrategy:
             ]
         }
     """
+
+        # 1. 如果是列表，转换为组合策略字典
+    if isinstance(config, list):
+        if len(config) == 0:
+            raise ValueError("策略配置列表不能为空")
+        
+        # 如果只有一个策略，直接使用
+        if len(config) == 1:
+            config = config[0]
+        else:
+            # 多个策略，转换为组合策略
+            config = {
+                "combination_logic": "ANY",
+                "strategies": config
+            }
+    
+    # 2. 确保现在 config 是字典
+    if not isinstance(config, dict):
+        raise TypeError(f"策略配置必须是字典或字典列表，当前类型: {type(config)}")
+    
     # Check if composite strategy
     if "combination_logic" in config or "strategies" in config:
         return _create_composite_strategy(config)

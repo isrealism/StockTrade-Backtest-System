@@ -40,7 +40,14 @@ class Position:
 
     # Tracking metrics for sell strategies
     highest_price_since_entry: float = field(init=False)
+    highest_close_since_entry: float = field(init=False)
+    highest_close_date: Optional[datetime] = field(init=False)
+    lowest_close_since_entry: float = field(init=False)
+    lowest_close_date: Optional[datetime] = field(init=False)
     highest_high_since_entry: float = field(init=False)
+    highest_high_date: Optional[datetime] = field(init=False)
+    lowest_low_since_entry: float = field(init=False)
+    lowest_low_date: Optional[datetime] = field(init=False)
     days_held: int = 0
 
     # Optional metadata
@@ -50,23 +57,44 @@ class Position:
     def __post_init__(self):
         """Initialize tracking metrics."""
         self.highest_price_since_entry = self.entry_price
+        self.highest_close_since_entry = self.entry_price
+        self.highest_close_date = self.entry_date
+        self.lowest_close_since_entry = self.entry_price
+        self.lowest_close_date = self.entry_date
         self.highest_high_since_entry = self.entry_price
+        self.highest_high_date = self.entry_date
+        self.lowest_low_since_entry = self.entry_price
+        self.lowest_low_date = self.entry_date
 
-    def update_highest_price(self, close: float, high: float):
-        """Update highest price trackers."""
+    def update_price_stats(self, date: datetime, close: float, high: float, low: float):
+        """Update highest/lowest price trackers and timestamps."""
         if close > self.highest_price_since_entry:
             self.highest_price_since_entry = close
+        if close > self.highest_close_since_entry:
+            self.highest_close_since_entry = close
+            self.highest_close_date = date
+        if close < self.lowest_close_since_entry:
+            self.lowest_close_since_entry = close
+            self.lowest_close_date = date
         if high > self.highest_high_since_entry:
             self.highest_high_since_entry = high
+            self.highest_high_date = date
+        if low < self.lowest_low_since_entry:
+            self.lowest_low_since_entry = low
+            self.lowest_low_date = date
 
     def increment_days_held(self):
         """Increment holding period counter."""
         self.days_held += 1
 
     @property
-    def current_value(self) -> float:
-        """Current position value at entry price (will be updated externally)."""
+    def initial_value(self) -> float:
+        """Initial position value (Principal) at entry price."""
         return self.shares * self.entry_price
+
+    def market_value(self, current_price: float) -> float:
+        """Calculate current market value based on provided price."""
+        return self.shares * current_price
 
     def unrealized_pnl(self, current_price: float) -> float:
         """Calculate unrealized P&L."""
@@ -158,6 +186,9 @@ class BuySignal:
     date: datetime
     strategy_name: str  # e.g., "BBIKDJSelector"
     strategy_alias: str  # e.g., "少妇战法"
+
+    # Score for ranking signals (higher = better)
+    score: float = 0.0
 
     # Optional: Store indicator values at signal time for analysis
     signal_data: Optional[Dict[str, Any]] = None

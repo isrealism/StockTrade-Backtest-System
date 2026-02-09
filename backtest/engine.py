@@ -44,7 +44,9 @@ class BacktestEngine:
         position_sizing: str = "equal_weight",
         commission_rate: float = 0.0003,
         stamp_tax_rate: float = 0.001,
-        slippage_rate: float = 0.001
+        slippage_rate: float = 0.001,
+        buy_config: Optional[Dict[str, Any]] = None,
+        log_callback: Optional[Any] = None
     ):
         """
         Initialize backtesting engine.
@@ -64,6 +66,7 @@ class BacktestEngine:
         """
         self.data_dir = Path(data_dir)
         self.buy_config_path = buy_config_path
+        self.buy_config = buy_config
         self.sell_strategy_config = sell_strategy_config
         self.start_date = pd.to_datetime(start_date)
         self.end_date = pd.to_datetime(end_date)
@@ -94,6 +97,17 @@ class BacktestEngine:
 
         # Logging
         self.logs: List[str] = []
+        self.log_callback = log_callback
+
+    def _ensure_project_root_on_path(self):
+        """Ensure project root is on sys.path for Selector imports."""
+        import sys
+        if self.buy_config_path:
+            root = Path(self.buy_config_path).parent.parent
+        else:
+            root = Path(__file__).resolve().parents[1]
+        if str(root) not in sys.path:
+            sys.path.insert(0, str(root))
 
     def load_data(self, stock_codes: Optional[List[str]] = None, lookback_days: int = 200):
         """
@@ -210,12 +224,15 @@ class BacktestEngine:
 
         self.log("Loading buy selectors...")
 
-        with open(self.buy_config_path, 'r', encoding='utf-8') as f:        # 初始化 BacktestEngine 时传入的路径，指向configs，以只读模式打开并自动关闭
-            config = json.load(f)       # 读取JSON内容并解析为Python字典
+        if self.buy_config is not None:
+            config = self.buy_config
+        else:
+            with open(self.buy_config_path, 'r', encoding='utf-8') as f:        # 初始化 BacktestEngine 时传入的路径，指向configs，以只读模式打开并自动关闭
+                config = json.load(f)       # 读取JSON内容并解析为Python字典
 
         # Import Selector module
         import sys      # 导入 sys 模块以操作模块搜索路径
-        sys.path.insert(0, str(Path(self.buy_config_path).parent.parent))  # buy_config_path 是初始化时传入的配置文件路径，path.parent.parent 获取该路径的父目录的父目录（项目根目录），sys.path.insert(0, ...) 将该目录添加到模块搜索路径的最前面，确保后续导入模块时优先从该目录查找
+        self._ensure_project_root_on_path()
         import Selector
 
         for selector_config in config.get('selectors', []):     # 遍历配置文件中的每个选股器配置
@@ -224,6 +241,9 @@ class BacktestEngine:
 
             class_name = selector_config['class']
             params = selector_config.get('params', {})
+            if not isinstance(params, dict):
+                self.log(f"Warning: {class_name} params invalid (expected dict), got {type(params)}")
+                continue
 
             # Get class from Selector module
             if not hasattr(Selector, class_name):
@@ -249,7 +269,24 @@ class BacktestEngine:
         from .sell_strategies.base import create_sell_strategy      # 从 base 模块中导入 create_sell_strategy 函数
 
         self.sell_strategy = create_sell_strategy(self.sell_strategy_config)        # 使用传入的卖出策略配置创建卖出策略实例
-        self.log(f"Loaded sell strategy: {self.sell_strategy_config.get('name', 'Unknown')}")
+
+        # ============ 安全获取策略名称 ============
+        # 如果是字典，尝试获取 name 或 class
+        if isinstance(self.sell_strategy_config, dict):
+            strategy_name = (
+                self.sell_strategy_config.get('name') or 
+                self.sell_strategy_config.get('class') or 
+                'Unknown'
+            )
+        # 如果是列表，显示策略数量
+        elif isinstance(self.sell_strategy_config, list):
+            strategy_name = f"Multiple Strategies ({len(self.sell_strategy_config)})"
+        # 其他情况
+        else:
+            strategy_name = 'Unknown'
+        
+        self.log(f"Loaded sell strategy: {strategy_name}")
+ 
 
     def get_buy_signals(self, date: datetime) -> List[BuySignal]:
         """
@@ -287,11 +324,17 @@ class BacktestEngine:
                 self.log(f"  {selector_info['alias']}: {len(selected_codes)} signals")      # 记录每种选股器选出来的信号
 
                 for code in selected_codes:
+                    score, indicator_data = self._compute_signal_score(
+                        code,
+                        data_for_selectors.get(code)
+                    )
                     signal = BuySignal(
                         code=code,
                         date=date,
                         strategy_name=selector_info['class'],
-                        strategy_alias=selector_info['alias']
+                        strategy_alias=selector_info['alias'],
+                        score=score,
+                        signal_data=indicator_data
                     )
                     signals.append(signal)      #  将每个选中的股票代码封装成BuySignal对象并添加到signals列表中
 
@@ -302,6 +345,9 @@ class BacktestEngine:
                 self.log(f"  Traceback: {traceback.format_exc()}")
 
         # Summary
+        # Sort by score descending for allocation priority
+        signals.sort(key=lambda s: s.score, reverse=True)
+
         self.log(f"  Total signals: {len(signals)}")
         return signals
 
@@ -354,7 +400,82 @@ class BacktestEngine:
 
         return sell_signals
 
-    def run(self):
+    def _process_buy_signals_with_fallback(
+        self,
+        date: datetime,
+        buy_signals: List[BuySignal],
+        current_market_data: Dict[str, pd.Series]
+    ) -> int:
+        """
+        Process buy signals with fallback mechanism.
+
+        When an order cannot be generated (insufficient cash, position limit),
+        move to next signal. This ensures maximum capital utilization.
+
+        Args:
+            date: Current date
+            buy_signals: List of buy signals to process
+            current_market_data: Current market data for all stocks
+
+        Returns:
+            Number of orders created
+        """
+        signals_attempted = 0
+        orders_created = 0
+
+        for signal in buy_signals:
+            # Stop if position limit reached
+            if not self.portfolio.can_open_new_position():
+                self.log(
+                    f"  Position limit reached ({self.portfolio.max_positions}), "
+                    f"stopping signal processing"
+                )
+                break
+
+            # Get current price
+            if signal.code not in current_market_data:
+                signals_attempted += 1
+                self.log(f"  SKIPPED: {signal.code} ({signal.strategy_alias}) - no market data")
+                continue
+
+            current_price = current_market_data[signal.code]['close']
+
+            # Get historical data for position sizing
+            df = self.market_data[signal.code]
+            df_up_to_date = df[df['date'] <= date]
+
+            # Attempt to generate order
+            order = self.portfolio.generate_buy_order(
+                code=signal.code,
+                signal_date=date,
+                price=current_price,
+                buy_strategy=signal.strategy_alias,
+                market_data=df_up_to_date
+            )
+
+            signals_attempted += 1
+
+            if order:
+                orders_created += 1
+                self.log(
+                    f"  BUY SIGNAL #{orders_created}: {signal.code} "
+                    f"({signal.strategy_alias}) {order.shares} shares @ ~{current_price:.2f}"
+                )
+            else:
+                # Log why signal was skipped
+                self.log(
+                    f"  SKIPPED: {signal.code} ({signal.strategy_alias}) @ {current_price:.2f} - "
+                    f"insufficient cash or duplicate position"
+                )
+
+        self.log(
+            f"  Buy signal summary: {len(buy_signals)} total, "
+            f"{signals_attempted} attempted, {orders_created} orders created"
+        )
+
+        return orders_created
+
+    def run(self, progress_callback: Optional[Any] = None, cancel_check: Optional[Any] = None):
         """
         Run backtest.
 
@@ -364,11 +485,27 @@ class BacktestEngine:
         self.log("BACKTEST START")
         self.log("="*80)
 
-        for date in self.trading_dates:
+        total_days = len(self.trading_dates)
+        for idx, date in enumerate(self.trading_dates, start=1):
+            if cancel_check and cancel_check():
+                self.log("BACKTEST CANCELLED")
+                break
             self.log(f"\n--- {date.date()} ---")
+
+            # Log cash status at start of day
+            self.log(
+                f"  Cash: {self.portfolio.cash:,.2f}, "
+                f"Available: {self.portfolio.get_available_cash():,.2f}, "
+                f"Positions: {len(self.portfolio.positions)}"
+            )
 
             # 1. Process T+1 settlement
             self.portfolio.process_settlement(date)     # 处理T+1结算，更新持仓和现金等信息
+
+            # Log settlement impact
+            proceeds = self.portfolio.settlement_tracker.pending_proceeds.get(date, 0)
+            if proceeds > 0:
+                self.log(f"  Settlement: +{proceeds:,.2f} proceeds received")
 
             # 2. Execute pending orders (from T-1)
             market_data_today = {
@@ -376,11 +513,24 @@ class BacktestEngine:
             }
             executed_orders = self.portfolio.execute_pending_orders(date, market_data_today)    # 执行待处理订单
 
+            # Log individual order results
             for order in executed_orders:
                 if order.status.value == "EXECUTED":
                     self.log(f"  EXECUTED {order.action.value}: {order.code} x {order.shares} @ {order.execution_price:.2f}")
                 else:
                     self.log(f"  FAILED {order.action.value}: {order.code} - {order.reason}")
+
+            # Log execution summary
+            from .data_structures import OrderAction, OrderStatus
+            buy_executed = sum(1 for o in executed_orders if o.action == OrderAction.BUY and o.status == OrderStatus.EXECUTED)
+            sell_executed = sum(1 for o in executed_orders if o.action == OrderAction.SELL and o.status == OrderStatus.EXECUTED)
+            buy_failed = sum(1 for o in executed_orders if o.action == OrderAction.BUY and o.status == OrderStatus.FAILED)
+
+            if buy_executed > 0 or sell_executed > 0 or buy_failed > 0:
+                self.log(
+                    f"  Execution summary: {buy_executed} buys, {sell_executed} sells, "
+                    f"{buy_failed} buy failures | Cash: {self.portfolio.cash:,.2f}"
+                )
 
             # 3. Update position metrics
             current_market_data = {}
@@ -409,32 +559,16 @@ class BacktestEngine:
             # 5. Get buy signals
             buy_signals = self.get_buy_signals(date)        # 获取买入信号
 
-            # 6. Generate buy orders for T+1
-            for signal in buy_signals:
-                # Get current price
-                if signal.code in current_market_data:
-                    current_price = current_market_data[signal.code]['close']       # 获取买入信号的当前收盘
-
-                    # Get historical data for position sizing
-                    df = self.market_data[signal.code]
-                    df_up_to_date = df[df['date'] <= date]      # 获取信号股票截止当日的数据
-
-                    order = self.portfolio.generate_buy_order(
-                        code=signal.code,
-                        signal_date=date,
-                        price=current_price,
-                        buy_strategy=signal.strategy_alias,
-                        market_data=df_up_to_date
-                    )
-
-                    if order:
-                        self.log(f"  BUY SIGNAL: {signal.code} ({signal.strategy_alias}) {order.shares} shares @ ~{current_price:.2f}")
+            # 6. Generate buy orders for T+1 with fallback mechanism
+            self._process_buy_signals_with_fallback(date, buy_signals, current_market_data)
 
             # 7. Update equity curve
             self.portfolio.update_equity_curve(date, current_market_data)
 
             # Log portfolio summary
             self.log(f"  Portfolio: {len(self.portfolio.positions)} positions, Cash: {self.portfolio.cash:,.0f}, Total: {self.portfolio.total_value:,.0f}")
+            if progress_callback:
+                progress_callback(idx, total_days, date)
 
         self.log("\n" + "="*80)
         self.log("BACKTEST COMPLETE")
@@ -465,3 +599,81 @@ class BacktestEngine:
         """Log message to console and internal log."""
         print(message)
         self.logs.append(message)
+        if self.log_callback:
+            try:
+                self.log_callback(message)
+            except Exception:
+                pass
+
+    def _compute_signal_score(self, code: str, df: Optional[pd.DataFrame]) -> tuple[float, Dict[str, Any]]:
+        """Compute composite score and indicator data for a buy signal."""
+        if df is None or df.empty:
+            return 0.0, {'code': code, 'reason': 'no_data'}
+
+        self._ensure_project_root_on_path()
+        from Selector import compute_kdj, compute_bbi  # noqa: WPS433
+
+        df = df.copy()
+        df = df.sort_values('date')
+
+        # KDJ score
+        kdj_df = compute_kdj(df)
+        current_j = float(kdj_df['J'].iloc[-1]) if 'J' in kdj_df.columns else float('nan')
+        kdj_score = max(0.0, min(100.0, 100.0 - current_j)) if not np.isnan(current_j) else 0.0
+
+        # Volume score (20-day avg)
+        volume = float(df['volume'].iloc[-1]) if 'volume' in df.columns else 0.0
+        avg_volume = float(df['volume'].tail(20).mean()) if 'volume' in df.columns else 0.0
+        volume_ratio = volume / avg_volume if avg_volume > 0 else 0.0
+        volume_score = max(0.0, min(100.0, (volume_ratio - 1.0) / 2.0 * 100.0))
+
+        # Momentum score (daily return)
+        if len(df) >= 2:
+            prev_close = float(df['close'].iloc[-2])
+            current_close = float(df['close'].iloc[-1])
+            momentum_pct = (current_close / prev_close - 1.0) if prev_close > 0 else 0.0
+        else:
+            momentum_pct = 0.0
+
+        if momentum_pct <= 0:
+            momentum_score = 0.0
+        elif momentum_pct <= 0.02:
+            momentum_score = (momentum_pct / 0.02) * 100.0
+        elif momentum_pct <= 0.05:
+            momentum_score = 100.0 - ((momentum_pct - 0.02) / 0.03) * 50.0
+        else:
+            momentum_score = 50.0
+        momentum_score = max(0.0, min(100.0, momentum_score))
+
+        # BBI slope score
+        bbi = compute_bbi(df)
+        bbi = bbi.dropna()
+        bbi_slope = 0.0
+        if len(bbi) >= 2:
+            window = bbi.tail(5)
+            if len(window) >= 2 and window.iloc[0] != 0:
+                bbi_slope = (window.iloc[-1] - window.iloc[0]) / window.iloc[0] / (len(window) - 1)
+        bbi_score = max(0.0, min(100.0, (bbi_slope / 0.005) * 100.0)) if bbi_slope > 0 else 0.0
+
+        # Composite score
+        composite = (
+            0.4 * kdj_score +
+            0.3 * volume_score +
+            0.2 * momentum_score +
+            0.1 * bbi_score
+        )
+
+        indicator_data = {
+            'kdj_j': current_j,
+            'volume_ratio': volume_ratio,
+            'momentum_pct': momentum_pct,
+            'bbi_slope': bbi_slope,
+            'score_breakdown': {
+                'kdj': kdj_score,
+                'volume': volume_score,
+                'momentum': momentum_score,
+                'bbi': bbi_score
+            }
+        }
+
+        return float(composite), indicator_data
