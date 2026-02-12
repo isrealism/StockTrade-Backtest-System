@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Inter, JetBrains_Mono } from "next/font/google";
+import Script from "next/script";
 import "./globals.css";
 import { Sidebar } from "@/components/sidebar";
 
@@ -29,6 +30,12 @@ export default function RootLayout({
 }) {
   return (
     <html lang="zh-CN" className="dark">
+      <head>
+        <Script
+          src="https://unpkg.com/lightweight-charts/dist/lightweight-charts.standalone.production.js"
+          strategy="beforeInteractive"
+        />
+      </head>
       <body
         className={`${inter.variable} ${jetbrainsMono.variable} font-sans antialiased`}
       >

@@ -497,6 +497,30 @@ def get_rankings(metric: str = "score"):
     return {"items": items}
 
 
+@app.get("/api/stocks/{code}/candles")
+def get_stock_candles(code: str):
+    csv_path = DATA_DIR / f"{code}.csv"
+    if not csv_path.exists():
+        raise HTTPException(status_code=404, detail=f"Stock data not found for {code}")
+    df = pd.read_csv(csv_path)
+    required = {"date", "open", "close", "high", "low", "volume"}
+    if not required.issubset(set(df.columns)):
+        raise HTTPException(status_code=400, detail="Invalid CSV format")
+    df = df.sort_values("date")
+    candles = [
+        {
+            "time": row["date"],
+            "open": float(row["open"]),
+            "high": float(row["high"]),
+            "low": float(row["low"]),
+            "close": float(row["close"]),
+            "volume": float(row["volume"]),
+        }
+        for _, row in df.iterrows()
+    ]
+    return {"candles": candles}
+
+
 @app.get("/api/benchmark")
 def get_benchmark(name: str, start: str, end: str):
     bench_dir = DATA_DIR / "index"

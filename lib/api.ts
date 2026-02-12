@@ -88,6 +88,15 @@ export interface Template {
   payload: BacktestPayload;
 }
 
+export interface CandleData {
+  time: string;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  volume: number;
+}
+
 // API Functions
 export async function getConfig() {
   return fetchAPI<{
@@ -133,6 +142,10 @@ export async function deleteTemplate(id: string) {
   return fetchAPI<{ id: string; status: string }>(`/api/templates/${id}`, {
     method: "DELETE",
   });
+}
+
+export async function getStockCandles(code: string) {
+  return fetchAPI<{ candles: CandleData[] }>(`/api/stocks/${code}/candles`);
 }
 
 export async function getRankings(metric = "score") {

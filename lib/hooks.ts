@@ -5,6 +5,7 @@ import {
   getBacktest,
   getRankings,
   listTemplates,
+  getStockCandles,
 } from "./api";
 
 export function useConfig() {
@@ -43,4 +44,12 @@ export function useTemplates() {
   return useSWR("templates", listTemplates, {
     revalidateOnFocus: false,
   });
+}
+
+export function useStockCandles(code: string | null) {
+  return useSWR(
+    code ? `candles-${code}` : null,
+    () => (code ? getStockCandles(code) : null),
+    { revalidateOnFocus: false }
+  );
 }
