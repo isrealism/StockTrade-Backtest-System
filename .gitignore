@@ -21,3 +21,5 @@ __pycache__/
 
 # VSCode
 .vscode/
+node_modules
+node_modules/ .next/ .DS_Store .env.local pycache/ venv/
