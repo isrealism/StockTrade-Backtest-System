@@ -146,3 +146,14 @@ export async function getRankings(metric = "score") {
     }>;
   }>(`/api/rankings?metric=${metric}`);
 }
+
+export interface BenchmarkSeries {
+  date: string;
+  nav: number;
+}
+
+export async function getBenchmark(name: string, start: string, end: string) {
+  return fetchAPI<{ series: BenchmarkSeries[] }>(
+    `/api/benchmark?name=${encodeURIComponent(name)}&start=${start}&end=${end}`
+  );
+}

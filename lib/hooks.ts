@@ -5,6 +5,7 @@ import {
   getBacktest,
   getRankings,
   listTemplates,
+  getBenchmark,
 } from "./api";
 
 export function useConfig() {
@@ -43,4 +44,29 @@ export function useTemplates() {
   return useSWR("templates", listTemplates, {
     revalidateOnFocus: false,
   });
+}
+
+export function useBenchmark(
+  name: string | null,
+  start: string | null,
+  end: string | null
+) {
+  const key =
+    name && start && end ? `benchmark-${name}-${start}-${end}` : null;
+  return useSWR(
+    key,
+    () => (name && start && end ? getBenchmark(name, start, end) : null),
+    { revalidateOnFocus: false }
+  );
+}
+
+export function useMultipleBacktests(ids: string[]) {
+  return useSWR(
+    ids.length > 0 ? `multi-backtests-${ids.join(",")}` : null,
+    async () => {
+      const results = await Promise.all(ids.map((id) => getBacktest(id)));
+      return results;
+    },
+    { revalidateOnFocus: false }
+  );
 }
