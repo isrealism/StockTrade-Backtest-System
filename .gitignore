@@ -1,5 +1,6 @@
 # Data
-data/raw/
+data/
+fetch.log
 data/processed/
 results/
 
@@ -21,3 +22,4 @@ __pycache__/
 
 # VSCode
 .vscode/
+node_modules
