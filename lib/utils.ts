@@ -23,3 +23,13 @@ export function formatDate(date: string): string {
   if (!date) return "-";
   return date.split("T")[0];
 }
+
+export function formatCurrency(num: number): string {
+  return (
+    "\u00A5" +
+    Number(num).toLocaleString("zh-CN", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    })
+  );
+}

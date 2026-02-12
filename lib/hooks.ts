@@ -6,6 +6,8 @@ import {
   getRankings,
   listTemplates,
   getStockCandles,
+  getBenchmark,
+  listCompletedBacktests,
 } from "./api";
 
 export function useConfig() {
@@ -52,4 +54,21 @@ export function useStockCandles(code: string | null) {
     () => (code ? getStockCandles(code) : null),
     { revalidateOnFocus: false }
   );
+}
+export function useBenchmark(
+  name: string | null,
+  start: string,
+  end: string
+) {
+  return useSWR(
+    name ? `benchmark-${name}-${start}-${end}` : null,
+    () => (name ? getBenchmark(name, start, end) : null),
+    { revalidateOnFocus: false }
+  );
+}
+
+export function useCompletedBacktests() {
+  return useSWR("completed-backtests", listCompletedBacktests, {
+    revalidateOnFocus: false,
+  });
 }
