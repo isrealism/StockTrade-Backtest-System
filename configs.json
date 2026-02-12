@@ -1,4 +1,9 @@
 {
+  "selector_combination": {
+    "mode": "OR",
+    "time_window_days": 5,
+    "required_selectors": []
+  },
   "selectors": [
     {
       "class": "BBIKDJSelector",

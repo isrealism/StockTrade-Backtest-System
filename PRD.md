@@ -1,149 +1,657 @@
-# Product Requirements Document (PRD)
-# Project: StockTradebyZ Backtest System
+产品需求设计（功能需求）
+1. 系统通⽤实体定义
+本模块定义了系统内部各组件之间交互的标准数据格式，确保信号、订单、持仓和交易记录在流转过
+程中的⼀致性与完整性。
+1.1 买⼊信号 (BuySignal)
+• 定义：由选股策略模块产⽣的原始买⼊建议。
+• 核⼼要素：股票代码、信号产⽣⽇期、策略名称及昵称、打分
+• 后续可扩展：触发信号时各项关键指标数据（⽤于后续分析）。
+1.2 持仓 (Position)
+• 定义：账⼾当前持有的某⼀仓股票的资产状态。
+• 核⼼要素：
+◦ 股票代码
+◦ 建仓⽇期
+◦ 建仓价格
+◦ 仓位⼤⼩
+◦ 建仓成本
+◦ 持仓以来最⾼收盘价、对应时间
+◦ 持仓以来最低收盘价、对应时间
+◦ 股价最⾼价、对应时间
+◦ 股价最低价、对应时间
+◦ 持仓天数
+◦ 买⼊策略、买⼊时的指标数据（根据code关联相应的BuySignal）
+◦ 该仓位的初始市值、当前市值
+◦ 未实现的利润（Unrealized PnL）及其百分⽐ (Unrealized PnL Percentage)：shares x
+current_price - cost_basis;
+• ⽀持操作：
+◦ 最⾼价跟踪（Highest Price Since Entry）
+◦ 持仓天数更新
+1.3 订单 (Order)
+• 定义：管理交易订单状态及属性。
+• 核⼼要素：
+◦ 股票代码、执⾏动作（买或卖）、shares、信号产⽣⽇期、执⾏⽇期
+◦ 如果订单执⾏成功，标记订单状态为已执⾏，记录：
+▪ 状态：默认为 PENDING
+▪ 执⾏价格
+▪ 佣⾦
+▪ 印花税（买⼊为0.0）
+▪ 滑点
+▪ 总成本
+▪ 总收益
+▪ 卖出订单记录卖出原因
+▪ 买⼊订单记录选股策略
+• 状态管理：⽀持 PENDING (待处理) -> EXECUTED (已成交) / FAILED (废单) / CANCELLED
+(撤单) 的状态流转。
+1.4 交易记录 (Trade)
+• 定义：⼀笔完整的“买⼊+卖出”明细记录。
+• 核⼼要素：
+◦ 股票代码
+◦ 建仓⽇期、建仓价格、shares、建仓成本
+◦ 清仓⽇期、价格、收益
+◦ （Optional）买⼊策略、清仓原因
+◦ 收益记录（⾃动计算）：
+▪ ⽑利润（Gross PnL）： shares × (exit_price − entry_price)
+▪ ⽑利润百分⽐（Gross PnL Percentage）： entry_price
+exit_price − entry_price
+▪ 净利润（Net PnL）： exit_proceeds − entry_cost
+▪ 净利润百分⽐（Net PnL Percentage）： entry_cost
+exit_proceeds − entry_cost
+◦ 持仓天数
+◦ 最⼤未实现利润百分⽐（Max Unrealized PnL Percentage)
+• 将核⼼要素转为字典形式⽅便统⼀管理。
 
-## Summary
-This project provides a backtesting system for stock trading strategies. Users choose one of six built-in selectors (buy signals) and a sell strategy, run a backtest over historical data, and review performance results. The system is designed to be extensible so new selectors and strategies can be added over time.
+2. 仓位与资⾦管理
+2.1 功能概述
+本模块负责管理账⼾中的持仓（Position）、资⾦（Cash）以及交易中订单资⾦的冻结与解冻，保证交易在严格的资⾦约束和仓位约束下进⾏，资⾦永不为负。遵守 T+1 ⽇交易制度，每⽇更新持仓状态，并执⾏新的买卖订单，从账⼾中扣除 / 冻结相应资⾦。⽀持随时调⽤查看账⼾中的可⽤资⾦、仓位明细、持仓状态、被冻结资⾦、待释放资⾦等，⽀持获取资产曲线和交易记录明细。
+2.2 账⼾资产结构
+• 总资产 = 持仓市值 + 总现⾦
+• 持仓市值 = 所有持仓中的股票市值 x shares
+• 总现⾦ (Cash) = 可⽤资⾦ (available_cash) + 冻结资⾦ (frozen_cash)
+2.3 仓位管理
+2.3.1 更新持仓
+每⽇收盘后，遍历所有持仓股票：
+• 更新持仓天数（days_held + 1）
+• 更新期间最⾼价（记录⾃建仓以来的最⾼收盘价/最⾼价）
+• 例外处理：若当⽇停牌，则不更新价格与持仓天数
+2.3.2 更新资产曲线
+每⽇收盘结算后，计算当⽇总资产，并向 equity_curve 列表追加记录：
+• 包含：⽇期、总现⾦、持仓市值、总资产、持仓数量、冻结资⾦、待释放资⾦。
+2.3.3 开新仓
+判断当⽇能否开新仓，如果当前已满仓或可⽤资⾦不够⽬标仓位，则拒绝所有买⼊信号，次⽇不开新
+仓。
+1. 计算⽬标仓位规模
+◦ 加载买⼊信号列表，将买⼊信号按 Score 排序
+◦ 计算明⽇开盘最⼤可⽤资⾦： P rojected_CashT +1 = Cashnow + Settling_F undsT +1
+▪ Cashnow ：T ⽇收盘后的当前可⽤现⾦。
+▪ ：即将在 T+1 ⽇开盘前到账的资⾦（即 T ⽇卖出成交产⽣的待结算
+⾦额）。
+Settling_F undsT +1
+◦ 资⾦分配流程：
+▪ 初始化 Remaining_Cash = P rojected_CashT +1
+▪ 按排序依次遍历每个信号：
+• 满仓检查：如果 (当前持仓数 + 已⽣成订单数) >= 最⼤持仓限制，终⽌分配流程。
+• 如果该标的已在持仓或已在待执⾏列表中，跳过。
+• 依据仓位分配逻辑，计算该信号的⽬标仓位⾦额 Target_Cost 。
+• 资⾦条件判断：
+◦ 加⼊资⾦安全垫（Buffer）控制，计算时使⽤ 以防次
+⽇开盘价过⾼出现资⾦不够买⼊的情况。
+Cashnow = 98% × Cashnow
+◦ 如果 Remaining_Cash >= Target_Cost ：
+▪ 根据 (round down to closest 100)，返回 shares shares = Target_cost/Close_T
+▪ 调⽤模拟交易执⾏模块的函数计算预估成本 Target_Total_Cost
+▪ Remaining_Cash -= Target_Total_Cost
+▪ 将订单加⼊待执⾏队列
+◦ 若资⾦不⾜：
+▪ Shares 返回 0，尝试队列中的下⼀个（寻找更低价的标的）
+1. 仓位分配逻辑
+◦ 等权分配：⽬标仓位 = 当前总资产 / 最⼤持仓数
+◦ 基于⻛险分配：
+▪ 如果当⽇及之前的数据⻓度不够14天或 ATR ⽆法计算，则⾃动使⽤等权分配
+▪ shares = 单个仓位可以承受的亏损⾦额 / (2倍ATR) = initial_capital × 0.01 / (2 × ATR)
+▪ 修正第⼀个交易⽇的 TR 为当⽇振幅；
+ATR = 从当⽇往前 period 个交易⽇的平均TR（period 可配置，默认为 14）
+TR = max(HighT − LowT , ∣HighT − CloseT −1 ∣, ∣LowT − CloseT −1 ∣)
+2.3.4 产⽣订单
+1. 产⽣买⼊订单
+    ◦ 检查能否开新仓，如果不能，则不产⽣新订单。
+    ◦ 检查该股票是否已经在持仓，如果已经持仓，则不产⽣新订单
+    ◦ 计算⽬标仓位，如果⽬标仓位为 0，则不产⽣新订单
+    ◦ 该订单执⾏⽇期 = 信号产⽣⽇期 + 1 交易⽇
+    ◦ ⽣成买⼊订单，订单应包含：股票代码、订单⾏为（买）、⽬标仓位 shares、买⼊信号产⽣⽇期、订单执⾏⽇期、选股器
+    ◦ 将该订单加⼊待执⾏订单队列。
+2. 产⽣卖出订单
+    ◦ 检查是否正在持仓，如果没有持仓，则不产⽣订单
+    ◦ 检查是否可以卖出（当天买⼊的股票不可以卖出），如果不可以，不产⽣订单
+    ◦ 订单执⾏⽇期 = 信号产⽣⽇期 + 1 交易⽇
+    ◦ ⽣成卖出订单，应包含：股票代码、订单⾏为（卖）、仓位⼤⼩ shares、卖出信号产⽣⽇期、订单执⾏⽇期、卖出原因、买⼊时对应的选股器
+    ◦ 将该订单加⼊待执⾏订单队列。
+2.4 资⾦追踪
+- T⽇产⽣卖单，T+1 ⽇开盘执⾏卖单后，将收益所得加⼊现⾦账⼾，⽤于后续再投⼊。
 
-## Problem Statement
-Strategy ideas often look good in hindsight but fail in real market conditions. The project needs a repeatable, realistic way to evaluate strategy performance across historical data, with guardrails against lookahead bias and realistic execution constraints.
+3. 模拟交易执⾏模块
+3.1 功能概述
+本模块作为回测系统的执⾏引擎，负责将 T ⽇⽣成的订单转化为 T+1 ⽇的实际成交。其核⼼职责是在严格遵循 A 股 T+1 制度 的前提下，利⽤ T+1 ⽇开盘数据执⾏订单，⾃动处理交易⻛控（如停牌、涨跌停拦截）与成本清算（扣除税费、滑点、佣⾦）。
+3.2 订单执⾏规则
+• 如果当⽇该股停牌，不允许执⾏，返回False
+• 如果该股开盘即涨停或跌停，则不允许执⾏，返回False并输出原因。
+3.3 订单执⾏
+• 检查订单执⾏⽇期是否为当⽇，如果不是，则将该订单放回待执⾏订单队列
+• 检查该股票在当⽇是否正常开市，如果没有，则该订单作废，标记为失败，加⼊已执⾏订单⾏列
+• 数据规范性检查
+• 检查是否可以执⾏订单（4.1 判断），如果不能执⾏，则订单作废，记录订单失败原因，加⼊已执⾏订单⾏列
+• 以开盘价买⼊/卖出，执⾏订单
+• 如果是买⼊订单：
+    ◦ ⽀持根据输⼊的价格和股数计算某⼀只⽬标股票的预估成本
+    ◦ 检查现有资⾦能否买⼊，如果不能，输出提⽰并作废订单
+    ◦ 将买⼊资⾦从现⾦ (cash) 中扣除：订单 total_cost = 当⽇开盘价 x shares + 滑点(slippage) + 佣⾦(commission)
+    ◦ 建⽴仓位，应包含：股票代码、建仓⽇期、建仓价格、仓位⼤⼩、买⼊资⾦、选股器
+    ◦ 将该仓冻结，当⽇不允许卖出，T+1 ⽇开始解冻，标记为可以卖出
+• 如果是卖出订单：
+    ◦ 计算最⼤未实现收益：highest_price_since_entry − entry_price / entry_price
+    ◦ 将该订单记录⼊交易记录，应包含信息：股票代码、建仓⽇期、建仓价格、仓位⼤⼩、买⼊资⾦、选股器、清仓⽇期、清仓价格、收益、清仓原因、持仓周期、最⼤未实现收益
+    ◦ 订单收益 net_proceeds = 当⽇开盘价 x shares - 滑点 - 佣⾦ - 印花税(stamp tax)。
+    ◦ 将该股从持仓中删除
+• 将该订单状态标记为已执⾏ EXECUTED
+3.4 交易规则约束
+• ⽀持获取指定股票的涨跌停限制（如科创板20%，主板10%）
+• A股市场以 100 股为最⼩交易单位
+• 买⼊和卖出订单的执⾏都在 T+1 ⽇开盘时，因此计算资⾦时统⼀使⽤ T+1 ⽇开盘价
+• 如果⽬标股票在执⾏当⽇停牌或开盘涨跌停，则⽆法进⾏任何操作，该订单⾃动作废
 
-## Goals
-- Allow users to select a buy selector and sell strategy, run a backtest, and review results.
-- Provide realistic market simulation (T+1, price limits, transaction costs).
-- Produce consistent, comparable performance metrics for strategy evaluation.
-- Make it easy to add new selectors and sell strategies.
+4. 回测主引擎模块
+4.1 功能概述
+本模块是整个回测系统的主引擎，采⽤事件驱动 (Event-Driven) 架构，按交易⽇推进时间轴。其核⼼职责是协调数据层、策略层（买⼊/卖出）、资⾦管理层和执⾏层，确保各个组件在正确的时间点获取经过严格隔离的数据（防未来函数），并按 A 股有序执⾏“结算 -> 交易 -> 决策”的每⽇循环。
+4.2 数据加载与预处理
+4.2.1 历史数据加载
+• ⽀持读取数据⽬录下的 CSV 格式股票数据。
+• 回溯周期：加载数据时，必须额外加载回测开始⽇期之前的 lookback_days （默认 200 天）数据。确保在回测的第⼀天，MA60、BBI 等⻓期指标已有⾜够的历史数据进⾏计算。
+• 在加载全量数据后，必须基于回测结束⽇期（End Date）进⾏截断。
+• 在每⽇循环中，向策略提供数据时，必须严格执⾏ df[df['date'] <= current_date] 的操作，严禁使⽤ current_date 之后的数据。
+4.2.2 数据质量检验
+• 扫描数据质量，检查在回测开始⽇期之前的历史数据⻓度，以确保常⽤指标可计算。如果回测开始⽇期当天及之前没有历史数据，输出警告；若发现⼤量股票（ > 50%）在回测起始⽇的历史数据⻓度不⾜（如 <120天），输出警告⽇志，提⽰⽤⼾调整开始⽇期或增加回溯天数。
+• 正常情况下，输出⽇志提⽰：已加载股票数量、回测开始⽇期、最⼩历史数据（开始⽇期之前）、最⻓历史数据。并输出数据⻓度不够计算MA60与BBI指标的股票数量。
+4.3 策略动态加载
+• 买⼊策略加载：
+    ◦ 读取 configs.json ，根据类字段动态实例化 Selector.py 中的选股器类。
+    ◦ ⽀持通过配置⽂件中的 activate 字段开启或禁⽤特定策略。
+    ◦ 输出⽇志：已加载选股器数量。
+• 卖出策略加载：
+    ◦ 根据 sell_strategies.json 配置字典动态实例化卖出策略（⽀持单⼀策略或组合策略，如果是组合策略应在策略名称中包含策略数量）。
+    ◦ 输出⽇志：已加载卖出策略的名称
+4.4 主循环
+回测引擎按交易⽇遍历时间轴，每⽇严格按照以下时序执⾏操作：
+1. 开盘前资⾦结算 (T+1 Settlement)
+◦ 调⽤模块，处理 T ⽇到账的资⾦
+◦ 输出⽇志记录到账资⾦。
+2. 执⾏待处理订单
+◦ 获取 T-1 ⽇收盘后⽣成的待处理订单队列。
+◦ 使⽤ T ⽇（当⽇） 的市场数据（开盘价）调⽤执⾏引擎执⾏订单。
+◦ 处理成交结果（成功/失败），并输出⽇志记录（应包含：已执⾏订单明细、失败订单明细、当
+天执⾏的买⼊订单数量、卖出订单数量、失败订单数量、账⼾现⾦）。
+3. 更新持仓状态
+◦ 根据 T ⽇收盘数据，更新所有持仓的“最⾼价”、“持仓天数”等统计指标。
+◦ 如果当天没有数据，不做处理。
+4. 执⾏卖出决策
+◦ 遍历当前持仓，调⽤卖出策略。
+◦ 输⼊：截⾄ T ⽇的历史数据。
+◦ 输出：若触发卖出，⽣成 T+1 ⽇执⾏的卖单（放⼊待执⾏队列）。
+5. 执⾏买⼊决策
+◦ 遍历所有激活的选股器。
+◦ 输⼊：截⾄ T ⽇的历史数据。
+◦ 输出：获取 T ⽇买⼊信号列表。
+6. ⽣成买⼊订单
+◦ ⽣成的订单标记为 T+1 ⽇执⾏（放⼊待执⾏队列）。
+7. 收盘后结算
+◦ 计算并记录 T ⽇收盘后的账⼾总资产（现⾦ + 持仓市值），更新资产曲线。
+4.5 信号处理与后备机制
+• 处理买⼊信号流程：
+    a. 获取当⽇所有运⾏的选股器产⽣的买⼊信号，以 score 排序
+    b. 按信号顺序依次尝试⽣成订单。
+    c. 检查是否已满仓（ can_open_new_position ）。若已满仓，⽴即停⽌后续信号处理。
+    d. 资⾦/持仓校验：
+        ▪ 若某信号因“资⾦不⾜”或“已持有该股”⽽⽆法⽣成订单，系统不应停⽌。
+        ▪ 系统应跳过当前失败信号，继续尝试列表中的下⼀个信号，直到仓位填满或信号⽤尽。
+4.6 结果输出
+回测结束后，需打包返回以下核⼼数据：
+• 资产曲线：包含每⽇⽇期、总资产、现⾦、持仓市值的时序数据。
+• 交易明细：所有已平仓交易的完整记录（开仓时间/价格、平仓时间/价格、收益率、持有天数）。
+• 统计数据：最终资产、总收益率、交易总笔数、当前持仓数。
 
-## Non-Goals
-- Live trading execution or broker integration.
-- Portfolio optimization or ML-based strategy discovery.
-- Real-time data streaming.
-- Multi-asset classes beyond A-share equities.
+5. 选股器模块设计
+5.1 功能概述
+该模块定义五种内置选股器，在回测过程中负责读取股票市场的历史数据，根据选股器逻辑在股票池
+中进⾏筛选，产⽣买⼊信号并输出。⽀持多个选股器并⾏运⾏，系统需要汇总输出每个选股器产⽣的
+信号。
+选股器在T⽇收盘之后运⾏，⽤于选出T+1⽇的买⼊⽬标。如果T⽇停市，则不产⽣任何信号。计算T⽇
+信号时，仅允许使⽤T⽇及T⽇之前的数据（开盘、收盘、最⾼价、最低价）。所有计算均使⽤前复权
+数据。
+每种策略封装为独⽴的类，关键参数阈值设置默认值，保证可配置，参数配置统⼀从 configs.json ⾥
+调取。在回测过程中仅启⽤在 configs.json 中状态标记为已激活的选股器。
+信号评分机制：
+所有选股器在输出 BuySignal 时，必须计算并附带 score 。
+• 通⽤计算公式：综合分 = KDJ分×40% + 量能分×30% + 动量分×20% + BBI分×10%
+各指标说明:
+• KDJ分: J值越低分数越⾼（0-100分区间反转）
+J=0→100分, J=50→50分, J=100→0分
+• 量能分: 当⽇成交量/20⽇均量，⽐值越⼤分数越⾼
+量⽐1.0→0分, 量⽐3.0→100分, 线性插值
+• 动量分: 单⽇涨幅，最优区间为+1%到+3%
++2%→100分, 0%→0分, +5%→50分（避免追⾼）
+• BBI分: BBI斜率，上升趋势强度
+斜率0.5%/天→100分, 线性缩放
+5.2 通⽤指标定义
+计算指标类函数应单独定义，以便在选股器类中随时调⽤。
+1. KDJ 计算：
+◦ 默认 RSV 回看周期（n）为9⽇，默认K值和D值平滑为3（可配置）。
+◦ （low_n: 近n⽇中最低价中的最⼩值；high_n: 近n⽇中最
+⾼价中的最⼤值）
+RSVt = ×
+high_n − low_n
+C − low_n 100
+◦ K值： Kt =
+3
+K +
+2
+t−1 3
+RSV
+1
+t
+◦ D值： Dt =
+3
+D +
+2
+t−1
+3
+K
+1
+t
+◦ J值： Jt = 3 × Kt − 2 × Dt
+◦ 如果所需数据不⾜：
+▪ 如果某⽇之前没有数据：K、D 默认设为 50
+▪ 如果某⽇之前不⾜ n ⽇的数据：RSV按照现有数据中的最⾼价和最低价计算
+1. BBI 计算：
+◦ 标准（3、6、12、24）⽇均线的平均值，以收盘价计算
+◦ 如果某⽇之前的数据不⾜24⽇，则该⽇ BBI 为空值
+1. 计算 RSV：
+◦ 回看周期 n ⽇（可配置）。
+◦ （low_n: 近n⽇中最低价中的最⼩值；high_n: 近n⽇中最
+⾼价中的最⼤值）
+RSVt = ×
+high_n − low_n
+C − low_n 100
+◦ 如果某⽇之前数据不⾜ n ⽇：该⽇ RSV 为空值
+1. 计算 DIF
+◦ 默认快线周期为12⽇、慢线为26⽇（可配置）。
+◦ EMAt = α ⋅ C +t (1 − α) ⋅ EMAt−1
+◦ 快线： α =
+fast + 1 ； 慢线：
+2
+α =
+slow + 1
+2
+◦ 如果某⽇之前数据不⾜ fast/slow ⽇：该⽇ DIF 为空值
+1. 判断 BBI 趋势好坏：
+◦ 从当前交易⽇ T ⽇开始往前，寻找⼀段 BBI 符合条件的窗⼝（仅需⼀段），约束窗⼝最⼩值与
+最⼤值，约束该窗⼝内允许 BBI 回撤的最⼤⽐例，窗⼝⻓度约束和回撤⽐例可配置。
+◦ 设 ，计算 BBInorm(t) =
+BBI(T − w + 1)
+BBI(t)
+δ(t) = BBInorm(t) − BBInorm(t − 1)
+◦ 允许涨幅最低的 bbi_q_threshold %天出现 delta < 0 的情况，其他天数⾥ BBI 不能回撤；
+◦ 从最⻓窗⼝longest=min(len(bbi),max_window)向下搜索，找到任⼀满⾜区间即通过；
+◦ 如果 BBI 数据⻓度不够窗⼝最⼩值，直接返回False
+1. 寻找峰值：
+◦ 在最⾼价中寻找相对峰值，
+1. 最后⼀次有效上穿 MA：
+◦ 从当前交易⽇往前，在最近 n 天⾥找最后⼀次有效上穿MA（前⽇收盘价⼩于均值，后⽇收盘价
+⼤于等于均值），返回上穿出现的位置。如果数据不⾜ n 天，则以该股票实际拥有的所有历史
+数据为准进⾏搜索。
+◦ n 可配置；n 为 None 时在全历史中寻找。
+1. 知⾏线计算：
+◦ 默认知⾏线参数 m1=14, m2=28, m3=57, m4=114，可配置。
+◦ 定义第⼀次平滑： EMA1,t = α ⋅ Closet + (1 − α) ⋅ EMA1,t−1
+◦ 定义知⾏短期趋势线： zxdqt = α ⋅ EMA1,t + (1 − α) ⋅ zxdqt−1
+◦ 平滑系数 alpha： α =
+10 + 1
+2
+◦ 定义各个周期的MA： MAi,t = m
+1
+i
+Close
+j=0
+m∑
+i−1
+t−j
+MA MA MA MA
+◦ 定义知⾏多空线： zxdkxt =
+4
+MA1 + MA2 + MA3 + MA4
+1. 判断是否通过当⽇过滤：
+◦ 涨跌幅限制、振幅限制：当⽇不能涨或跌超过2%，最⾼价与最低价差值百分⽐不能⾼于 7%。
+1.  判断是否通过知⾏约束：
+◦ ⽤于判断当⽇收盘价是否⼤于当⽇⻓期线所在位置、当⽇短期线所在位置是否⼤于⻓期线
+◦ 标准可配置
+5.3 内置选股策略
+选股器的基本参数在定义时全部设为默认值，调⽤选股器时调⽤ configs.json 中的参数配置。必须满
+⾜选股器中所有筛选条件才会产⽣买⼊信号，任意⼀条不满⾜都会返回False，使该股票⽆法通过筛
+选。
+• 最⼤回溯上限：系统根据策略配置，确定最⼤所需的数据窗⼝⻓度
+Lmax = max_window + Buffer (20) 。
+• 滑动截取规则：
+◦ 若股票历史交易天数 ，则仅截取最近的 个交易⽇数据参与计算（丢弃更早的
+历史数据）。
+N > Lmax Lmax
+◦ 若股票历史交易天数 N ≤ Lmax ，则全量加载所有 N 个交易⽇的数据参与计算。
+• 后续校验：数据加载完成后，由各个具体策略内部⾃⾏判断数据⻓度是否满⾜其最⼩计算要求。
+5.3.1 BBIKDJ Selector
+核⼼逻辑：
+股票整体趋势向好（BBI上升），近期收盘价波动不过⼤，短期趋势好于⻓期趋势，近期出现收盘价上
+穿60⽇均线，选取J值处于超卖区的时机⼊场
+基本参数（默认值）：
+• J值阈值（ j_threshold )：-5
+• J分位阈值（ j_q_threshold ): 0.1
+• bbi_min_window : 90
+• max_window : 90
+• price_range_pct : 100
+• bbi_q_threshold : 0.05
+筛选条件：
+1. 满⾜当⽇过滤
+2. 收盘价波动幅度约束：近 max_window 区间中，最⾼收盘价与最低收盘价的差值百分⽐不能超
+过 price_range_pct ；
+1. BBI 持续上升：通过 BBI 趋势筛选，确保区间内只有 bbi_q_threshold ⽐例的天数有回撤；
+2. KDJ过滤：满⾜当⽇ J 值⼩于 15 或当⽇ J 值为最近 max_window 期内最低的 j_q_threshold
+范围内；如果有些⽇期没有有效 J 值，直接跳过；如果没有数据，返回False。
+1. 上穿60⽇均线： 当⽇收盘价⼤于 MA60；在最近 max_window ⽇中，存在有效上穿MA60；
+2. 当⽇ DIF > 0
+3. 满⾜当⽇知⾏约束 zx_condition_at_positions ： 收盘 > ⻓期，短期 > ⻓期
+5.3.2 SuperB1战法
+核⼼逻辑：
+在前⼀段周期中股票发出过B1信号，但之后⼀直稳定横盘，当⽇突然⼤幅下跌，并处于超卖区，近期
+可能出现反弹
+核⼼参数（默认值）：
+lookback_n ：60 -- 回溯窗⼝⻓度
+close_vol_pct ：0.05 -- 收盘价区间波动率限制
+price_drop_pct ：0.03 -- 跌幅限制
+j_threshold ：-5
+j_q_threshold ：0.1
+嵌套 BBIKDJ Selector 参数配置
+参数合法性检查（报错情况）：
+1. lookback_n < 2
+2. 不满⾜ (0 < close_vol_pct < 1)
+3. 不满⾜ (0 < price_drop_pct < 1)
+4. 不满⾜ (0 <= j_q_threshold <= 1)
+5. B1_params 缺失
+报错时应输出具体报错原因。
+筛选条件：
+1. 满⾜当⽇过滤
+2. 保证数据量充⾜，满⾜有 bbi_selector.max_window + 20 + lookback_n 个交易⽇的历史数据。如
+果数据不⾜，返回False；
+1. 搜索满⾜ BBIKDJ 筛选条件的 t_m ⽇：
+a. 搜索窗⼝为当前交易⽇之前的 lookback_n ⽇
+b. 从窗⼝中搜索符合 BBIKDJSelector 筛选条件的⽇期 t_m
+c. 如果[t_m, T-1] 区间不⾜ 3 天，返回False
+d. 要求在 [t_m, T-1] 区间中，收盘价的波动率不超过 close_vol_pct：
+( −
+Closelow
+Closehigh 1) <= close_vol_pct
+1. 在 t_m 当⽇满⾜知⾏约束：收盘 > ⻓期，短期 > ⻓期
+2. 当⽇收盘价相对前⼀⽇下跌不⼩于 price_drop_pct：
+(Closep
+C
+re
+l
+v
+o
+−
+se
+C
+pr
+l
+e
+o
+v
+setoday ) >= price_drop_pct ;
+1. KDJ过滤：J值⼩于 j_threshold 或者J值在 lookback_n ⽇区间内处于相对低位（属于最低的
+j_q_threshold 分位内）
+1. 当⽇知⾏约束仅要求满⾜短期 > ⻓期
+5.3.3 BBIShortLongSelector 补票战法
+核⼼逻辑：
+股票⼤趋势处于多头（BBI上升且DIF>0），⻓周期能量维持⾼位（⻓RSV>=threshold），近期利⽤短
+线波动带来的回撤（短RSV先处于⾼位，再进⼊超卖区，当⽇处在强势区）进⾏择时，在短线重拾动能
+且价格稳于⻓期均线之上时⼊场。
+核⼼参数：
+n_short : 3 -- 短RSV计算区间
+n_long : 21 -- ⻓RSV计算区间
+m : 3 -- m必须⼤于等于2 （不满⾜时应报错）
+bbi_min_window : 90
+max_window : 150
+bbi_q_threshold : 0.05
+upper_rsv_threshold : 75
+lower_rsv_threshold : 25
+筛选条件：
+1. 满⾜当⽇过滤
+2. BBI上升：调⽤bbi_deriv_uptrend函数
+3. RSV过滤
+a. 最近m天， RSV _long >= upper_rsv_threshold
+b. 从最近m天的第⼀天起，存在某天满⾜ RSV _short >= upper , 并在该⽇之后存在某天满⾜
+RSV _short < lower
+c. 当⽇ RSV _short >= upper
+1. MACD: DIF > 0
+2. 满⾜知⾏约束：收盘>⻓期，短期>⻓期
+3. 历史数据⻓度约束：计算 RSV 的所需⻓度 + BBI 最⼩检测窗⼝ + m
+5.3.4 PeakKDJSelector
+核⼼逻辑：
+股票处于上升趋势，最新峰值⾼于前⼀峰值，在价格回调⾄前⼀个有效波峰的收盘价附近、并且J值处
+于低位时进⾏买⼊
+核⼼参数：
+j_threshold : -5
+max_window : 90⸺回溯窗⼝及 J 值分位数计算周期
+fluc_threshold : 0.03⸺今⽇收盘价与前峰收盘价的偏离度
+j_q_threshold : 0.10
+gap_threshold : 0.02 -- 峰顶和峰底的落差阈值 --> 前峰必须⽐中间的最低价⾼出⼀定⽐例
+筛选条件：
+1. 满⾜当⽇过滤
+2. 找到所有峰值，基于 K 线实体顶部（ oc_max ）提取波峰，最⼩间距 6 天，显著性 0.5。
+3. 最新波峰（Peak_t）的⾼度必须 > ⽬标前向波峰（Peak_prev）-> ⾼点上升
+4. 如果两个波峰之间存在其他中间峰，中间峰的⾼度必须全部⼩于Peak_prev
+5. ⽬标前向波峰与最新波峰之间，必须存在明显的低⾕（前峰⾼度 > 区间最低收盘价 * (1 + 2%)）
+6. 今⽇收盘价 必须落在 ⽬标前向波峰收盘价 的 ±3% 波动范围内。
+7. KDJ 过滤：当⽇ J 值 < 10或当⽇J值处于最近120天内的最低 10% 分位数）。
+8. 满⾜知⾏约束：收盘 > ⻓期，短期 > ⻓期
+5.3.5 BigBullishVolumeSelector
+核⼼逻辑：
+寻找单⽇出现实体⼤阳线且伴随成交量显著放⼤的股票。引⼊知⾏短期趋势线进⾏约束，要求⼤涨之
+后的收盘价依然位于趋势线之下（或附近），以此确保⼊场点位于低位反弹阶段，⽽⾮⾼位追涨
+基本参数：
+• up_pct_threshold : 0.04⸺⻓阳线涨幅⻔槛
+• upper_wick_pct_max : 0.5⸺上影线⻓度限制（上影线⻓度 / K线实体顶部，拒绝⻓上影）
+• vol_lookback_n : 20⸺放量⽐较的历史天数
+• vol_multiple : 2.5⸺放量倍数（当⽇量 > 基准均量 * 2.5）
+• min_history : 最少历史⻓度（默认 = vol_lookback_n + 2)
+• require_bullish_close : True -- 可选是否要求当⽇ close >= open
+• ignore_zero_volume : True -- 计算均量时是否忽略 volume = 0
+• close_lt_zxdq_mult : 1.0⸺乖离率/反弹空间约束（收盘价 < zxdq * ）
+参数合法性检查（报错情况）：
+1. up_pct_threshold <= 0
+2. upper_wick_pct_max < 0
+3. vol_lookback_n < 1
+4. vol_multiple <= 0
+5. close_lt_zxdq_mult <= 0
+报错时应输出具体报错原因。
+筛选条件：
+1. 满⾜当⽇过滤
+2. 当⽇阳线约束（optional）： 收盘>=开盘
+3. 当⽇涨幅（ − ） > up_pct_threshold CloseT −1
+CloseT 1
+1. 上影线过滤: 上影线相对实体顶部的⽐例（ ） <
+upper_wick_pct_max
+max(open, close)
+High − max(open, close)
+1. 成交量验证：当⽇成交量 必须 > vol_multiple x 过去 n ⽇均量。
+2. 相对位置约束：当⽇收盘价 必须 < 知⾏短期趋势线 x close_lt_zxdq_mult 。
+3. 历史数据⻓度约束：max (min_history, vol_lookback_n + 2)
+4. 卖出策略模块设计
+6.1 功能概述
+本模块定义了系统⽀持的所有平仓逻辑。所有策略均继承⾃ SellStrategy 基类，⽀持单⼀策略运
+⾏，也⽀持通过组合模式（Composite）进⾏“与/或”逻辑的混合调⽤。
+6.2 卖出策略设计
+6.2.1 指标退场 (Indicator Exits)
+基于技术指标形态的卖出信号，主要⽤于捕捉趋势反转或超买⻛险。
+1. KDJ 超买退场 (KDJOverboughtExit)
+◦ 核⼼逻辑：当 J 值过⾼，形成超买时卖出。
+◦ 参数配置：
+▪ j_threshold (默认 80): J 值阈值。
+▪ wait_for_turndown (默认 False): 是否要求 当⽇ J < 昨⽇ J 才触发。
+▪ use_percentile (默认 False): 是否使⽤ J 值历史分位数代替绝对阈值。
+▪ j_q_threshold (默认 90): 若启⽤分位数，则 J 值超过历史 90% 分位时触发。
+◦ KDJ 计算⽅式⻅（5.2 - 1）
+◦ 触发条件： J > j_threshold (或分位阈值) [如果启⽤ wait_for_turndown, 则还需要满⾜
+这个条件]。
+1. BBI 趋势反转 (BBIReversalExit)
+◦ 核⼼逻辑：当 BBI 多空均线连续下跌，提⽰趋势由多转空时卖出。
+◦ 参数配置：
+▪ consecutive_declines (默认 3): BBI 连续下跌的天数。
+◦ 规则：
+▪ BBI 计算⽅式⻅ （5.2 - 2）
+▪ BBI 数据⻓于 consecutive_declines
+◦ 触发条件： BBIT < BBIT −1 < ...... < BBIT −n
+1. 知⾏线死叉 (ZXLinesCrossDownExit)
+◦ 核⼼逻辑：当知⾏短期趋势线下穿多空线时卖出（与买⼊逻辑相反）。
+◦ 参数配置：⽆特定可调参数。
+◦ 触发条件： ZXDQT −1 ≥ ZXDKXT −1 and ZXDQT < ZXDKXT
+1. 均线死叉 (MADeathCrossExit)
+• 核⼼逻辑：短期均线下穿⻓期均线。
+• 参数配置：
+◦ fast_period (默认 5): 快线周期。
+◦ slow_period (默认 20): 慢线周期。
+• 触发条件： MAfast,t − 1 ≥ MAslow,t − 1 and MAfast,t < MAslow,t 。
+6.4.2 ⽌盈退场 (Profit Targets)
+基于盈利⽬标的被动⽌盈，锁定利润。
+1. 固定⽐例⽌盈 (FixedProfitTarget)
+• 核⼼逻辑：当持仓浮盈达到预设百分⽐时卖出。
+• 参数配置：
+◦ target_pct (默认 0.15): ⽬标收益率（如 15%）。
+◦ partial_exit (默认 False): 是否分批⽌盈。
+◦ partial_exit_pct (默认 0.5): 若分批，卖出持仓的⽐例（如 50%）。
+• 触发条件：UnrealizedPnL%≥target_pct。
+1. R-Multiple ⻛险倍数⽌盈 (MultipleRExit)
+• 核⼼逻辑：基于⼊场时的⻛险（R）计算⽌盈⽬标。R 通常由⼊场时的 ATR 决定。
+• 参数配置：
+◦ r_multiple (默认 3.0): 盈亏⽐⽬标（如赚 3 赔 1）。
+◦ atr_period (默认 14): 计算初始⻛险 R 时的 ATR 周期。
+◦ stop_multiplier (默认 2.0): 计算初始⻛险 R 的倍数（Risk=ATR×2.0）。
+• 触发条件：CurrentProfit≥InitialRisk×r_multiple。
+6.4.3 ⽌损与移动⽌损 (Trailing Stops)
+包含固定⽌损、移动⽌损及⾃适应⽌损，⽤于控制单笔交易⻛险。
+1. 百分⽐移动⽌损 (PercentageTrailingStop)
+• 核⼼逻辑：价格从持仓期间最⾼收盘价回撤⼀定⽐例后卖出。
+• 参数配置：
+◦ trailing_pct (默认 0.08): 允许的最⼤回撤⽐例（如 8%）。
+◦ activate_after_profit_pct (默认 0.0): 仅当浮盈达到该⽐例后才激活⽌损（保护本⾦
+模式）。
+• 触发条件：Closet≤HighestClose×(1−trailing_pct)。
+1. ATR 移动⽌损 (ATRTrailingStop)
+• 核⼼逻辑：利⽤ ATR 衡量波动率，价格跌破“最⾼收盘价 - N倍ATR”时卖出。
+• 参数配置：
+◦ atr_period (默认 14): ATR 周期。
+◦ atr_multiplier (默认 2.0): 安全垫倍数。
+• 触发条件：Closet≤HighestClose−(ATR×multiplier)。
+1. 吊灯⽌损 (ChandelierStop)
+• 核⼼逻辑：ATR 移动⽌损的变体，基准价格使⽤“持仓期间最⾼High价”⽽⾮收盘价，更灵敏。
+• 参数配置：
+◦ lookback_period (默认 22): 查找最⾼价的回溯周期。
+◦ atr_period (默认 14): ATR 周期。
+◦ atr_multiplier (默认 3.0): 倍数。
+• 触发条件：Closet≤HighestHigh−(ATR×multiplier)。
+1.  ⾃适应波动率⽌损 (AdaptiveVolatilityExit)
+• 核⼼逻辑：根据当前市场波动率所处的历史分位，动态调整⽌损宽度。
+◦ 低波动期：收窄⽌损，保护微利。
+◦ ⾼波动期：放宽⽌损，防⽌被噪⾳震出。
+• 参数配置：
+◦ volatility_period (默认 20): 计算波动率的周期。
+◦ lookback_period (默认 120): 计算波动率分位的历史窗⼝。
+◦ low/high_vol_percentile : 判定低/⾼波动的分位阈值（默认 30/70）。
+◦ low/normal/high_vol_stop_pct : 不同状态下的⽌损⽐例（默认 5%/8%/12%）。
+• 触发条件：根据实时计算的 Stop% 判断 Closet≤HighestClose×(1−DynamicStop%)。
+6.4.4 放量退场 (Volume Exits)
+1.  成交量枯竭退场 (VolumeDryUpExit)
+• 核⼼逻辑：当成交量连续萎缩，显著低于历史均量时卖出，视为动能衰竭或流动性⻛险。
+• 参数配置：
+◦ volume_threshold_pct (默认 0.5): 枯竭阈值（如低于均量的 50%）。
+◦ lookback_period (默认 20): 计算均量的基准周期。
+◦ consecutive_days (默认 3): 需连续满⾜的天数。
+• 触发条件：连续 3 天 Volumet<AvgVolume20×0.5。
+6.4.5 持仓时间到期 (Time Based)
+1.  强制时间平仓 (TimedExit)
+• 核⼼逻辑：防⽌资⾦被⽆效占⽤，到达最⼤持仓天数后强制平仓。
+• 参数配置：
+◦ max_holding_days (默认 60): 最⼤允许持仓天数。
+• 触发条件：Position.days_held≥max_holding_days。
+6.4.6 组合策略逻辑 (Composite Logic)
+系统⽀持将上述单⼀策略组合使⽤，形成复杂的卖出体系。
+• 配置⽅式：传⼊策略列表及组合逻辑参数。
+• 组合逻辑：
+◦ ANY (OR逻辑)：任意⼀个⼦策略触发卖出信号，即执⾏卖出（如：⽌损 OR ⽌盈 OR 时间到
+期，满⾜其⼀即⾛）。
+◦ ALL (AND逻辑)：所有⼦策略同时触发才卖出（较少使⽤，通常⽤于极度保守的确认机制）。
+1. 回测结果与表现分析
+2. 前端需求
+⽬录：
+1. 参数配置界⾯：
+a.
+b. 保证选股器和sell strategies 的参数配置可调：⽤⼾先选择基础的（which selector，which
+sell strategy），然后⾥⾯⻚⾯有具体参数配置，可以修改，不修改的话使⽤默认值。
+c. 初始资⾦
+d. 最⼤持仓数
+e. 仓位分配⽅法选择（⽬前只⽀持equal weight 或者 risk based）
+f. 回测起⽌⽇期、交易所、股票池选择（全跑？某个板块？⽀持导⼊⽤⼾导⼊csv）
+g. 有⼀些更细致的可以放在⾼级配置部分（⽤⼾灵活度更⾼）：
+i. ⼿续费
+ii.
+h. ⽀持保存参数配置模版
+1. 信息查看：
+a. 内置策略的介绍
+b.
+1. 回测任务列表：
+a. 正在进⾏中的任务：
+i. 实时进度界⾯
+ii. 实时⽇志输出⾯板
+iii. 中⽌按钮（⽤⼾可随时中⽌回测）
+b. 历史回测
+1. Trading Result 需要的信息：
+a. ⽤⼾可下拉窗选择 计算超额收益时 跟哪个指数⽐较，
+b. 总交易数
+c. 胜率
+d. 总收益率
+e. 超额收益率（基于上证指数benchmark）loo
+f. 最⼤回撤率
+g. 总资产
+h. 每⼀笔交易明细：
+i. ⽀持筛选排序功能，可以筛选出⽐如清仓理由为⽌盈的等等，或者按照收益率排序
+ii. 股票代码、建仓⽇期、建仓价格、仓位⼤⼩、清仓⽇期、清仓价格、收益、清仓原因、持仓
+周期、选股器（点开可查看该股K线图，显⽰买⼊点和卖出点）
+i. 清仓理由统计（有多少是⽌盈退场？⽌损？）
+j. Performance charts：
+k. 表现最好的股
+l. 表现最好的板块
+1. 历史回测策略排名
+a. ⽀持使⽤胜率、总收益率、最⼤回撤、夏普⽐等指标给历史策略组合的回测结果排序
+b. 根据公式，给每种策略组合打分，排名（从收益、⻛险等⽅⾯评价）
+历史 Trading results 可查看（SQLite存储），每个历史result带⼀个performance charts
+交易结果仪表盘：
+功能描述：
+• 在权益曲线图上⽅提供⼀个下拉框：“选择对⽐基准”。
+• 选项：上证指数（默认）、沪深300、中证500、创业板指、或者“不对⽐”。
+• 交互逻辑：
+a. ⽤⼾切换下拉框（例如选“沪深300”）。
+b. 前端向后端请求该时间段的沪深300涨跌幅数据（或者前端⾃带离线数据）。
+c. 前端实时重绘图表：将策略的净值曲线与沪深300的净值曲线叠加。
+d. 前端实时重算相对指标：⾃动更新界⾯上的“超额收益率 (Alpha)”、“⻉塔系数 (Beta)”数
+值。
+1. ⽤⼾可以下拉框选择要查看的表现结果展⽰或分析：
+a. 可以选择多策略的收益曲线图叠加在同⼀张图上直观的看
+b. 图上随着⿏标移动可以看到每⽇的详情
+1. 后端需求
+数据库：SQLite -
 
-## Target Users
-- Individual traders testing strategy ideas.
-- Researchers comparing selector/strategy combinations.
-- Developers extending the system with new selectors or exits.
-
-## User Stories
-- As a user, I can choose a buy selector and sell strategy and run a backtest over a date range.
-- As a user, I can review key performance metrics (return, drawdown, Sharpe, win rate).
-- As a user, I can save backtest results to a file for later analysis.
-- As a developer, I can add a new selector or sell strategy with minimal changes.
-
-## Functional Requirements
-1. **Backtest Execution**
-   - Load historical OHLCV data from a specified `--data-dir` with per-symbol CSVs.
-   - Enforce date range filtering (`--start`, `--end`) with daily iteration.
-   - Prevent lookahead bias by using only data available up to the current date.
-   - Simulate T+1 settlement with pending order tracking and cash freezing.
-   - Enforce daily price limits (±10%) and reject orders that cross limits.
-   - Apply transaction costs (commission, stamp tax, slippage) to every fill.
-   - Support position sizing (`equal_weight`, `risk_based`) and a `--max-positions` cap.
-   - Ensure cash never goes negative; reject or defer orders as needed.
-2. **Strategy Selection and Signal Generation**
-   - Load buy selectors from `configs.json` with class, alias, activation flag, and params.
-   - Support the six built-in selectors from `Selector.py` without code changes.
-   - Load sell strategy definition by name from `configs/sell_strategies.json`.
-   - Support composite sell strategies that combine multiple exit rules.
-   - Allow multiple buy selectors to run in the same backtest and tag trades by selector.
-3. **Configuration and CLI Controls**
-   - Provide a single CLI entry point (`scripts/run_backtest.py`) for backtest execution.
-   - Allow overrides for date range, capital, position sizing, costs, and output path.
-   - Validate configuration files and surface clear errors when missing or invalid.
-4. **Results and Reporting**
-   - Print a performance report including returns, drawdown, and risk ratios.
-   - Generate equity curve and trade history data for analysis.
-   - Optionally persist results to JSON via `--save-results`.
-   - Include run metadata (date range, strategy, capital, config counts) in results.
-5. **Extensibility**
-   - New buy selectors can be added by implementing a class in `Selector.py`
-     and registering parameters in `configs.json`.
-   - New sell strategies can be added in `backtest/sell_strategies/`
-     and referenced in `configs/sell_strategies.json`.
-
-## Non-Functional Requirements
-- **Accuracy**: No future data leakage; strict date-based iteration.
-- **Performance**: Handle multi-year backtests with reasonable runtime.
-- **Extensibility**: New selectors/strategies can be added without rewriting core engine.
-- **Usability**: Clear CLI entry points and readable reports.
-- **Reliability**: Prevent negative cash balances; validate order constraints.
-
-## Data Requirements
-- Historical daily data with fields: `date, open, close, high, low, volume`.
-- Data sourced from Tushare (qfq daily K-line).
-- Stock universe provided via `stocklist.csv`.
-
-## Core Components (High-Level)
-- **Backtest Engine**: Main event loop, signal evaluation, order processing.
-- **Portfolio Manager**: Positions, cash, T+1 settlement, position sizing.
-- **Execution Engine**: Price limit checks and transaction cost model.
-- **Selectors**: Buy signal generation.
-- **Sell Strategies**: Exit logic (modular and composable).
-- **Performance Analyzer**: Returns, risk metrics, and trade statistics.
-
-## Metrics for Success
-- Strategy comparisons produce consistent, repeatable results.
-- Backtests complete without errors on standard data ranges.
-- Easy addition of new selector/strategy with minimal code changes.
-- Users can identify top-performing strategy combinations.
-
-## Risks and Mitigations
-- **Data quality**: Missing or inconsistent data can skew results.
-  - Mitigation: Validate inputs and fail fast on missing fields.
-- **Simulation realism**: Over-simplified execution can inflate results.
-  - Mitigation: Use T+1 settlement, price limits, transaction costs.
-- **Overfitting**: Users may optimize too heavily on past data.
-  - Mitigation: Encourage out-of-sample testing and walk-forward runs.
-
-## Future Enhancements
-- Multi-asset support or additional markets.
-- Strategy grid search and automated comparison reports.
-- Visualization dashboards for equity curves and distributions.
-- Portfolio-level constraints (sector/position limits).
-
-## Technical Architecture
-### Directory Map
-- `backtest/` Core backtest modules (engine, portfolio, execution, performance).
-- `backtest/sell_strategies/` Modular sell strategy implementations.
-- `scripts/` CLI entry points (e.g., `run_backtest.py`).
-- `configs/` Backtest configuration and sell strategy presets.
-- `data/` Historical OHLCV CSV files per symbol (input).
-- `backtest_results/` Saved backtest outputs (JSON results).
-- `backend/` Service-side code (not used in backtest CLI flow).
-- `frontend/` UI code (not used in backtest CLI flow).
-- `test_data/` Sample datasets for testing.
-- `Selector.py` Buy selector implementations.
-- `configs.json` Buy selector configuration (activation and params).
-- `fetch_kline.py` Data acquisition script (Tushare OHLCV download).
-- `select_stock.py` Standalone selector runner (non-backtest workflow).
-
-### Processing Logic
-1. **Data Preparation**
-   - `fetch_kline.py` reads `stocklist.csv` and writes CSVs into `./data/`.
-2. **Backtest Setup**
-   - `scripts/run_backtest.py` parses CLI args and loads:
-     - Buy selector config from `./configs.json`
-     - Sell strategy config from `./configs/sell_strategies.json`
-3. **Engine Execution**
-   - `BacktestEngine.load_data()` loads OHLCV CSVs from `--data-dir`.
-   - `BacktestEngine.load_buy_selectors()` instantiates active selectors.
-   - `BacktestEngine.load_sell_strategy()` builds the configured exit strategy.
-   - `BacktestEngine.run()` iterates dates, generates signals, and submits orders.
-4. **Order Execution and Portfolio Updates**
-   - `ExecutionEngine` applies T+1 settlement, price limits, and costs.
-   - `PortfolioManager` updates positions, cash, equity curve, and trades.
-5. **Analysis and Output**
-   - `PerformanceAnalyzer` computes metrics and prints the report.
-   - Results and metadata are saved to JSON if `--save-results` is set.
-
-### Inputs
-- `./data/*.csv` Historical OHLCV per symbol (required for backtests).
-- `./configs.json` Buy selector activation and parameter settings.
-- `./configs/sell_strategies.json` Sell strategy presets and parameters.
-- `./stocklist.csv` Symbol universe for data download (used by `fetch_kline.py`).
-- CLI arguments: date range, capital, costs, sizing, strategy selection.
-
-### Outputs
-- Console performance report and logs (default).
-- `./backtest_results/*.json` Full results when `--save-results` is used.
-- Equity curve and trade history included in results payload.
+买入信号：允许选择多个买入选股器，允许多种关系，比如“和”或者“或“，如果使用和，仅在所选的多个选股器都对同一只股票发出信号时，才将该信号加入信号池，如果选择“或”，则将每个选股器发出的信号都加入信号池。还可以设定，比如在选股器A选出某只信号之后的n天内，选股器B也选中了同样的信号，只将满足这种要求的信号在选股器B发出信号后放入信号池进行后续回测。

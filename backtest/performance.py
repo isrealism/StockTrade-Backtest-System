@@ -4,10 +4,26 @@ Performance analysis module.
 Calculates comprehensive metrics for backtest results.
 """
 
-from typing import Dict, List, Any
+ from typing import Dict, List, Any, Optional
 import pandas as pd
 import numpy as np
 from datetime import datetime
+from pathlib import Path
+import logging
+
+logger = logging.getLogger(__name__)
+
+# Benchmark index mappings
+BENCHMARK_INDICES = {
+    "沪深300": "000300_SH",
+    "上证指数": "000001_SH",
+    "中证500": "000905_SH",
+    "创业板指": "399006_SZ",
+    "科创50": "000688_SH"
+}
+
+# Default benchmark directory
+BENCHMARK_DATA_DIR = Path(__file__).parent.parent / "index_data"
 
 
 class PerformanceAnalyzer:
@@ -27,7 +43,9 @@ class PerformanceAnalyzer:
         equity_curve: pd.DataFrame,
         trades: pd.DataFrame,
         initial_capital: float,
-        risk_free_rate: float = 0.03
+        risk_free_rate: float = 0.03,
+        benchmark_name: Optional[str] = None,
+        benchmark_data_dir: Optional[Path] = None
     ):
         """
         Initialize analyzer.
@@ -37,11 +55,57 @@ class PerformanceAnalyzer:
             trades: DataFrame with trade history
             initial_capital: Starting capital
             risk_free_rate: Annual risk-free rate (default 3%)
+            benchmark_name: Benchmark name (e.g., "沪深300", "上证指数")
+            benchmark_data_dir: Directory containing benchmark CSV files
         """
         self.equity_curve = equity_curve
         self.trades = trades
         self.initial_capital = initial_capital
         self.risk_free_rate = risk_free_rate
+
+        # Benchmark support
+        self.benchmark_name = benchmark_name
+        self.benchmark_data_dir = benchmark_data_dir or BENCHMARK_DATA_DIR
+        self.benchmark_data: Optional[pd.DataFrame] = None
+
+        # Load benchmark if specified
+        if benchmark_name:
+            self._load_benchmark_data()
+
+    def _load_benchmark_data(self) -> None:
+        """Load benchmark index data from CSV."""
+        if not self.benchmark_name:
+            return
+
+        # Get benchmark file code
+        if self.benchmark_name not in BENCHMARK_INDICES:
+            logger.warning(f"Unknown benchmark: {self.benchmark_name}")
+            return
+
+        file_code = BENCHMARK_INDICES[self.benchmark_name]
+        filepath = self.benchmark_data_dir / f"{file_code}.csv"
+
+        if not filepath.exists():
+            logger.warning(f"Benchmark file not found: {filepath}")
+            return
+
+        try:
+            df = pd.read_csv(filepath)
+            df['date'] = pd.to_datetime(df['date'])
+            df = df.sort_values('date').reset_index(drop=True)
+
+            # Filter to match equity curve date range
+            if len(self.equity_curve) > 0:
+                start_date = pd.to_datetime(self.equity_curve['date'].iloc[0])
+                end_date = pd.to_datetime(self.equity_curve['date'].iloc[-1])
+                df = df[(df['date'] >= start_date) & (df['date'] <= end_date)]
+
+            self.benchmark_data = df
+            logger.info(f"Loaded benchmark {self.benchmark_name}: {len(df)} records")
+
+        except Exception as e:
+            logger.error(f"Error loading benchmark data: {e}")
+            self.benchmark_data = None
 
     def analyze(self) -> Dict[str, Any]:
         """
@@ -66,6 +130,10 @@ class PerformanceAnalyzer:
 
         # Distribution analysis
         results['distributions'] = self._calculate_distributions()
+
+        # Benchmark comparison (NEW)
+        if self.benchmark_name and self.benchmark_data is not None:
+            results['benchmark'] = self._calculate_benchmark_metrics()
 
         # Summary
         results['summary'] = self._generate_summary(results)
@@ -337,6 +405,101 @@ class PerformanceAnalyzer:
             'holding_period_histogram': {str(k): v for k, v in holding_hist.items()}
         }
 
+    def _calculate_benchmark_metrics(self) -> Dict[str, Any]:
+        """
+        Calculate metrics relative to benchmark.
+
+        Returns:
+            Dictionary with:
+            - benchmark_return: Total return of benchmark
+            - excess_return: Portfolio return - Benchmark return
+            - alpha: Jensen's alpha
+            - beta: Portfolio beta relative to benchmark
+            - tracking_error: Std dev of excess returns
+            - information_ratio: Excess return / Tracking error
+        """
+        if self.benchmark_data is None or len(self.benchmark_data) == 0:
+            return {}
+
+        # Align dates between portfolio and benchmark
+        equity = self.equity_curve.copy()
+        equity['date'] = pd.to_datetime(equity['date'])
+
+        benchmark = self.benchmark_data.copy()
+        benchmark['date'] = pd.to_datetime(benchmark['date'])
+
+        # Merge on date
+        merged = pd.merge(
+            equity[['date', 'total_value']],
+            benchmark[['date', 'close']],
+            on='date',
+            how='inner'
+        )
+
+        if len(merged) < 2:
+            return {}
+
+        # Calculate daily returns
+        merged['portfolio_return'] = merged['total_value'].pct_change()
+        merged['benchmark_return'] = merged['close'].pct_change()
+        merged = merged.dropna()
+
+        if len(merged) == 0:
+            return {}
+
+        # Total returns
+        portfolio_total_return = (merged['total_value'].iloc[-1] - merged['total_value'].iloc[0]) / merged['total_value'].iloc[0]
+        benchmark_total_return = (merged['close'].iloc[-1] - merged['close'].iloc[0]) / merged['close'].iloc[0]
+
+        # Excess return
+        excess_return = portfolio_total_return - benchmark_total_return
+
+        # Beta: Cov(portfolio, benchmark) / Var(benchmark)
+        covariance = np.cov(merged['portfolio_return'], merged['benchmark_return'])[0, 1]
+        benchmark_variance = np.var(merged['benchmark_return'], ddof=1)
+
+        if benchmark_variance > 0:
+            beta = covariance / benchmark_variance
+        else:
+            beta = 0.0
+
+        # Alpha: Portfolio return - (Risk-free rate + Beta * (Benchmark return - Risk-free rate))
+        # Annualized
+        days = (merged['date'].iloc[-1] - merged['date'].iloc[0]).days
+        years = days / 365.25 if days > 0 else 1.0
+
+        annualized_portfolio = (1 + portfolio_total_return) ** (1 / years) - 1
+        annualized_benchmark = (1 + benchmark_total_return) ** (1 / years) - 1
+
+        alpha = annualized_portfolio - (self.risk_free_rate + beta * (annualized_benchmark - self.risk_free_rate))
+
+        # Tracking error (std dev of excess returns)
+        excess_returns = merged['portfolio_return'] - merged['benchmark_return']
+        tracking_error = excess_returns.std() * np.sqrt(252)  # Annualized
+
+        # Information ratio: Excess return / Tracking error
+        if tracking_error > 0:
+            mean_excess_return = excess_returns.mean() * 252  # Annualized
+            information_ratio = mean_excess_return / tracking_error
+        else:
+            information_ratio = 0.0
+
+        return {
+            'benchmark_name': self.benchmark_name,
+            'benchmark_total_return': benchmark_total_return,
+            'benchmark_total_return_pct': benchmark_total_return * 100,
+            'benchmark_annualized_return': annualized_benchmark,
+            'benchmark_annualized_return_pct': annualized_benchmark * 100,
+            'excess_return': excess_return,
+            'excess_return_pct': excess_return * 100,
+            'alpha': alpha,
+            'alpha_pct': alpha * 100,
+            'beta': beta,
+            'tracking_error': tracking_error,
+            'tracking_error_pct': tracking_error * 100,
+            'information_ratio': information_ratio
+        }
+
     def _generate_summary(self, results: Dict[str, Any]) -> Dict[str, Any]:
         """Generate summary of key metrics."""
         summary = {
@@ -411,3 +574,37 @@ class PerformanceAnalyzer:
                 print(f"  {reason[:50]:50} {count:>5}")
 
         print("\n" + "="*80)
+
+    def get_benchmark_equity_curve(self) -> pd.DataFrame:
+        """
+        Get benchmark equity curve normalized to initial capital.
+
+        Returns:
+            DataFrame with columns [date, benchmark_value]
+        """
+        if self.benchmark_data is None or len(self.benchmark_data) == 0:
+            return pd.DataFrame()
+
+        # Align dates
+        equity = self.equity_curve.copy()
+        equity['date'] = pd.to_datetime(equity['date'])
+
+        benchmark = self.benchmark_data.copy()
+        benchmark['date'] = pd.to_datetime(benchmark['date'])
+
+        # Merge
+        merged = pd.merge(
+            equity[['date']],
+            benchmark[['date', 'close']],
+            on='date',
+            how='inner'
+        )
+
+        if len(merged) == 0:
+            return pd.DataFrame()
+
+        # Normalize to initial capital
+        initial_index = merged['close'].iloc[0]
+        merged['benchmark_value'] = (merged['close'] / initial_index) * self.initial_capital
+
+        return merged[['date', 'benchmark_value']]

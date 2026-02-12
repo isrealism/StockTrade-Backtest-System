@@ -92,6 +92,15 @@ class BacktestEngine:
         # Buy selectors
         self.buy_selectors: List[Any] = []
 
+        # Selector combination config
+        self.combination_mode = "OR"  # Default to OR for backward compatibility
+        self.time_window_days = 5
+        self.required_selectors = []
+
+        # Signal history tracking (for TIME_WINDOW mode)
+        self.signal_history: Dict[datetime, Dict[str, List[str]]] = {}
+        # Structure: {date: {selector_name: [code1, code2, ...]}}
+
         # Sell strategy
         self.sell_strategy = None
 
@@ -230,6 +239,22 @@ class BacktestEngine:
             with open(self.buy_config_path, 'r', encoding='utf-8') as f:        # 初始化 BacktestEngine 时传入的路径，指向configs，以只读模式打开并自动关闭
                 config = json.load(f)       # 读取JSON内容并解析为Python字典
 
+        # Load combination settings
+        if 'selector_combination' in config:
+            comb = config['selector_combination']
+            self.combination_mode = comb.get('mode', 'OR')
+            self.time_window_days = comb.get('time_window_days', 5)
+            self.required_selectors = comb.get('required_selectors', [])
+            self.log(f"Selector combination mode: {self.combination_mode}")
+            if self.combination_mode == "TIME_WINDOW":
+                self.log(f"  Time window: {self.time_window_days} days")
+            if self.required_selectors:
+                self.log(f"  Required selectors: {', '.join(self.required_selectors)}")
+        else:
+            # Default: OR mode (backward compatibility)
+            self.combination_mode = "OR"
+            self.log("Selector combination mode: OR (default)")
+
         # Import Selector module
         import sys      # 导入 sys 模块以操作模块搜索路径
         self._ensure_project_root_on_path()
@@ -292,7 +317,7 @@ class BacktestEngine:
         """
         Get buy signals from all selectors for given date.
 
-        CRITICAL: Prevents lookahead bias by only using data up to current date.
+        Applies combination logic based on self.combination_mode.
 
         Args:
             date: Current date
@@ -300,29 +325,29 @@ class BacktestEngine:
         Returns:
             List of buy signals
         """
-        signals = []
-
         # Prepare data for selectors (only up to current date)
         data_for_selectors = {}
         for code, df in self.market_data.items():
-            df_up_to_date = df[df['date'] <= date].copy()       # 仅使用截至当前日期的数据，防止未来数据泄露
+            df_up_to_date = df[df['date'] <= date].copy()
             if len(df_up_to_date) > 0:
-                data_for_selectors[code] = df_up_to_date        # 仅包含有数据的股票，将截至当前日期的数据存入字典
+                data_for_selectors[code] = df_up_to_date
 
-        # Log data readiness
         self.log(f"  Data prepared: {len(data_for_selectors)} stocks available")
 
-        # Get signals from each selector
+        # Collect signals from each selector separately
+        signals_by_selector: Dict[str, List[BuySignal]] = {}
+
         for selector_info in self.buy_selectors:
             try:
-                selected_codes = selector_info['instance'].select(      # 调用Selector模块中各种选股器的select（）函数获取selected_codes
+                selected_codes = selector_info['instance'].select(
                     date,
                     data_for_selectors
                 )
 
-                # Log per-selector results
-                self.log(f"  {selector_info['alias']}: {len(selected_codes)} signals")      # 记录每种选股器选出来的信号
+                self.log(f"  {selector_info['alias']}: {len(selected_codes)} signals")
 
+                # Convert to BuySignals with scores
+                signals = []
                 for code in selected_codes:
                     score, indicator_data = self._compute_signal_score(
                         code,
@@ -336,20 +361,160 @@ class BacktestEngine:
                         score=score,
                         signal_data=indicator_data
                     )
-                    signals.append(signal)      #  将每个选中的股票代码封装成BuySignal对象并添加到signals列表中
+                    signals.append(signal)
+
+                signals_by_selector[selector_info['class']] = signals
 
             except Exception as e:
-                # Enhanced error logging with stack trace
                 import traceback
-                self.log(f"  ERROR in {selector_info['alias']}: {e}")   
+                self.log(f"  ERROR in {selector_info['alias']}: {e}")
                 self.log(f"  Traceback: {traceback.format_exc()}")
+                signals_by_selector[selector_info['class']] = []
 
-        # Summary
-        # Sort by score descending for allocation priority
-        signals.sort(key=lambda s: s.score, reverse=True)
+        # Apply combination logic
+        final_signals = self._apply_combination_logic(
+            signals_by_selector,
+            date
+        )
 
-        self.log(f"  Total signals: {len(signals)}")
-        return signals
+        # Sort by score descending
+        final_signals.sort(key=lambda s: s.score, reverse=True)
+
+        self.log(f"  Total signals after {self.combination_mode} logic: {len(final_signals)}")
+        return final_signals
+
+    def _apply_combination_logic(
+        self,
+        signals_by_selector: Dict[str, List[BuySignal]],
+        current_date: datetime
+    ) -> List[BuySignal]:
+        """
+        Apply selector combination logic.
+
+        Args:
+            signals_by_selector: {selector_class: [BuySignal, ...]}
+            current_date: Current trading date
+
+        Returns:
+            List of BuySignals after applying combination logic
+        """
+        if self.combination_mode == "OR":
+            # Default: Collect all signals from all selectors
+            all_signals = []
+            for signals in signals_by_selector.values():
+                all_signals.extend(signals)
+
+            # Remove duplicates (same stock picked by multiple selectors)
+            # Keep the one with highest score
+            signals_by_code = {}
+            for signal in all_signals:
+                if signal.code not in signals_by_code:
+                    signals_by_code[signal.code] = signal
+                else:
+                    # Keep higher score
+                    if signal.score > signals_by_code[signal.code].score:
+                        signals_by_code[signal.code] = signal
+
+            return list(signals_by_code.values())
+
+        elif self.combination_mode == "AND":
+            # Only keep stocks selected by ALL required selectors
+            if not self.required_selectors:
+                # If no required selectors specified, require ALL active selectors
+                required = list(signals_by_selector.keys())
+            else:
+                required = self.required_selectors
+
+            # Group signals by stock code
+            signals_by_code: Dict[str, List[BuySignal]] = {}
+            for selector_name, signals in signals_by_selector.items():
+                if selector_name not in required:
+                    continue
+                for signal in signals:
+                    if signal.code not in signals_by_code:
+                        signals_by_code[signal.code] = []
+                    signals_by_code[signal.code].append(signal)
+
+            # Only keep stocks that have signals from ALL required selectors
+            final_signals = []
+            for code, signals in signals_by_code.items():
+                selector_names = {s.strategy_name for s in signals}
+                if len(selector_names) >= len(required):
+                    # All required selectors picked this stock
+                    # Use the signal with highest score
+                    best_signal = max(signals, key=lambda s: s.score)
+                    final_signals.append(best_signal)
+
+            return final_signals
+
+        elif self.combination_mode == "TIME_WINDOW":
+            # Track signal history
+            self._update_signal_history(signals_by_selector, current_date)
+
+            # For each stock, check if it was picked by multiple selectors
+            # within the time window
+            final_signals = []
+
+            # Get date range for window
+            window_dates = [
+                d for d in self.signal_history.keys()
+                if (current_date - d).days <= self.time_window_days
+            ]
+
+            # For each current signal, check if another selector picked it
+            # within the window
+            for selector_name, signals in signals_by_selector.items():
+                for signal in signals:
+                    code = signal.code
+
+                    # Check if this stock was picked by other selectors in window
+                    picked_by_selectors = {selector_name}
+
+                    for hist_date in window_dates:
+                        for hist_selector, hist_codes in self.signal_history[hist_date].items():
+                            if code in hist_codes:
+                                picked_by_selectors.add(hist_selector)
+
+                    # If picked by required number of selectors, add to final
+                    if self.required_selectors:
+                        required_count = len(self.required_selectors)
+                    else:
+                        required_count = 2  # Default: at least 2 selectors
+
+                    if len(picked_by_selectors) >= required_count:
+                        final_signals.append(signal)
+
+            # Remove duplicates (keep highest score)
+            signals_by_code = {}
+            for signal in final_signals:
+                if signal.code not in signals_by_code:
+                    signals_by_code[signal.code] = signal
+                else:
+                    if signal.score > signals_by_code[signal.code].score:
+                        signals_by_code[signal.code] = signal
+
+            return list(signals_by_code.values())
+
+        else:
+            raise ValueError(f"Unknown combination mode: {self.combination_mode}")
+
+    def _update_signal_history(
+        self,
+        signals_by_selector: Dict[str, List[BuySignal]],
+        current_date: datetime
+    ):
+        """Update signal history for TIME_WINDOW mode."""
+        # Record today's signals
+        self.signal_history[current_date] = {}
+        for selector_name, signals in signals_by_selector.items():
+            codes = [s.code for s in signals]
+            self.signal_history[current_date][selector_name] = codes
+
+        # Clean up old history (beyond window)
+        cutoff_date = current_date - timedelta(days=self.time_window_days + 1)
+        dates_to_remove = [d for d in self.signal_history.keys() if d < cutoff_date]
+        for d in dates_to_remove:
+            del self.signal_history[d]
 
     def check_sell_signals(self, date: datetime) -> List[tuple[str, str]]:
         """

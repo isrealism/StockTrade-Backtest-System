@@ -1,0 +1,25 @@
+2026-02-12 15:27:32,200 [INFO] fetch_benchmark.py:195 开始抓取 1 个指数 | 数据源:Tushare(日线) | 日期:20190101 → 20260212
+2026-02-12 15:27:32,200 [INFO] fetch_benchmark.py:202 正在抓取指数: 000300.SH
+2026-02-12 15:27:32,342 [INFO] fetch_benchmark.py:142 000300.SH 数据已保存: 1727 条记录
+2026-02-12 15:27:33,346 [INFO] fetch_benchmark.py:207 全部任务完成，数据已保存至 /Users/pengchuhan/Desktop/StockTrade_backtest/index_data
+2026-02-12 15:59:37,342 [INFO] fetch_benchmark.py:195 开始抓取 1 个指数 | 数据源:Tushare(日线) | 日期:20190101 → 20260212
+2026-02-12 15:59:37,342 [INFO] fetch_benchmark.py:202 正在抓取指数: 000001.SH
+2026-02-12 15:59:37,798 [INFO] fetch_benchmark.py:142 000001.SH 数据已保存: 1727 条记录
+2026-02-12 15:59:38,803 [INFO] fetch_benchmark.py:207 全部任务完成，数据已保存至 /Users/pengchuhan/Desktop/StockTrade_backtest/index_data
+2026-02-12 16:00:04,210 [INFO] fetch_benchmark.py:195 开始抓取 1 个指数 | 数据源:Tushare(日线) | 日期:20190101 → 20260212
+2026-02-12 16:00:04,210 [INFO] fetch_benchmark.py:202 正在抓取指数: 000905_SH
+2026-02-12 16:00:04,349 [WARNING] fetch_benchmark.py:137 000905_SH 无数据，生成空表。
+2026-02-12 16:00:04,350 [INFO] fetch_benchmark.py:142 000905_SH 数据已保存: 0 条记录
+2026-02-12 16:00:05,356 [INFO] fetch_benchmark.py:207 全部任务完成，数据已保存至 /Users/pengchuhan/Desktop/StockTrade_backtest/index_data
+2026-02-12 16:00:20,308 [INFO] fetch_benchmark.py:195 开始抓取 1 个指数 | 数据源:Tushare(日线) | 日期:20190101 → 20260212
+2026-02-12 16:00:20,309 [INFO] fetch_benchmark.py:202 正在抓取指数: 000905.SH
+2026-02-12 16:00:20,588 [INFO] fetch_benchmark.py:142 000905.SH 数据已保存: 1727 条记录
+2026-02-12 16:00:21,593 [INFO] fetch_benchmark.py:207 全部任务完成，数据已保存至 /Users/pengchuhan/Desktop/StockTrade_backtest/index_data
+2026-02-12 16:00:38,190 [INFO] fetch_benchmark.py:195 开始抓取 1 个指数 | 数据源:Tushare(日线) | 日期:20190101 → 20260212
+2026-02-12 16:00:38,190 [INFO] fetch_benchmark.py:202 正在抓取指数: 399006.SZ
+2026-02-12 16:00:38,532 [INFO] fetch_benchmark.py:142 399006.SZ 数据已保存: 1727 条记录
+2026-02-12 16:00:39,537 [INFO] fetch_benchmark.py:207 全部任务完成，数据已保存至 /Users/pengchuhan/Desktop/StockTrade_backtest/index_data
+2026-02-12 16:00:52,831 [INFO] fetch_benchmark.py:195 开始抓取 1 个指数 | 数据源:Tushare(日线) | 日期:20190101 → 20260212
+2026-02-12 16:00:52,831 [INFO] fetch_benchmark.py:202 正在抓取指数: 000688.SH
+2026-02-12 16:00:53,197 [INFO] fetch_benchmark.py:142 000688.SH 数据已保存: 1484 条记录
+2026-02-12 16:00:54,203 [INFO] fetch_benchmark.py:207 全部任务完成，数据已保存至 /Users/pengchuhan/Desktop/StockTrade_backtest/index_data
