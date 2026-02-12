@@ -4,7 +4,7 @@ Performance analysis module.
 Calculates comprehensive metrics for backtest results.
 """
 
- from typing import Dict, List, Any, Optional
+from typing import Dict, List, Any, Optional
 import pandas as pd
 import numpy as np
 from datetime import datetime
