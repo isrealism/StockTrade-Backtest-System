@@ -103,10 +103,13 @@ export default function RankingsPage() {
                       {getRankIcon(idx)}
                     </div>
 
-                    {/* Name & Date */}
+                    {/* Name & Date & ID */}
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-medium text-foreground">
                         {item.name}
+                        <span className="ml-1.5 font-mono text-[10px] text-muted-foreground">
+                          #{item.id.slice(0, 6)}
+                        </span>
                       </p>
                       <p className="mt-0.5 text-xs text-muted-foreground">
                         {formatDate(item.created_at)}
