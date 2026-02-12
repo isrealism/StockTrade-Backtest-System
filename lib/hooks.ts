@@ -11,6 +11,11 @@ export function useConfig() {
   return useSWR("config", getConfig, {
     revalidateOnFocus: false,
     dedupingInterval: 60000,
+    onErrorRetry: (error, _key, _config, revalidate, { retryCount }) => {
+      // Only retry 2 times if backend is unavailable
+      if (retryCount >= 2) return;
+      setTimeout(() => revalidate({ retryCount }), 5000);
+    },
   });
 }
 

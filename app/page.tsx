@@ -161,21 +161,10 @@ const DEFAULT_SELL_STRATEGIES: Record<string, { description: string; name: strin
 };
 
 export default function HomePage() {
-  const { data, isLoading } = useConfig();
+  const { data } = useConfig();
 
   const selectors = data?.selectors || DEFAULT_SELECTORS;
   const sellStrategies = data?.sell_strategies || DEFAULT_SELL_STRATEGIES;
-
-  if (isLoading) {
-    return (
-      <div className="flex h-full items-center justify-center">
-        <div className="flex flex-col items-center gap-3">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          <p className="text-sm text-muted-foreground">加载配置中...</p>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="p-6">
