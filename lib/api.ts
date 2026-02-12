@@ -146,3 +146,16 @@ export async function getRankings(metric = "score") {
     }>;
   }>(`/api/rankings?metric=${metric}`);
 }
+
+export async function getBenchmark(name: string, start: string, end: string) {
+  return fetchAPI<{ series: Array<{ date: string; nav: number }> }>(
+    `/api/benchmark?name=${encodeURIComponent(name)}&start=${start}&end=${end}`
+  );
+}
+
+export async function listCompletedBacktests() {
+  const data = await listBacktests();
+  return {
+    items: data.items.filter((item) => item.status === "COMPLETED"),
+  };
+}

@@ -5,6 +5,8 @@ import {
   getBacktest,
   getRankings,
   listTemplates,
+  getBenchmark,
+  listCompletedBacktests,
 } from "./api";
 
 export function useConfig() {
@@ -41,6 +43,24 @@ export function useRankings(metric: string) {
 
 export function useTemplates() {
   return useSWR("templates", listTemplates, {
+    revalidateOnFocus: false,
+  });
+}
+
+export function useBenchmark(
+  name: string | null,
+  start: string,
+  end: string
+) {
+  return useSWR(
+    name ? `benchmark-${name}-${start}-${end}` : null,
+    () => (name ? getBenchmark(name, start, end) : null),
+    { revalidateOnFocus: false }
+  );
+}
+
+export function useCompletedBacktests() {
+  return useSWR("completed-backtests", listCompletedBacktests, {
     revalidateOnFocus: false,
   });
 }
