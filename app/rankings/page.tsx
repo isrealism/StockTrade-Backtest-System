@@ -12,7 +12,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { cn, formatPercent, formatNumber, formatDate } from "@/lib/utils";
-import { Trophy, Medal, Loader2, BarChart3 } from "lucide-react";
+import { Trophy, Medal, Loader2, BarChart3, ExternalLink } from "lucide-react";
 import Link from "next/link";
 
 const METRIC_OPTIONS = [
@@ -175,6 +175,8 @@ export default function RankingsPage() {
                         ? formatPercent(item.rank_value ?? 0)
                         : (item.rank_value ?? 0).toFixed(3)}
                     </Badge>
+
+                    <ExternalLink className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
                   </CardContent>
                 </Card>
               </Link>

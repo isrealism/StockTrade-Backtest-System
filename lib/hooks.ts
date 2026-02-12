@@ -60,15 +60,22 @@ export function useBenchmark(
   start: string,
   end: string
 ) {
+  const key =
+    name && start && end ? `benchmark-${name}-${start}-${end}` : null;
   return useSWR(
-    name ? `benchmark-${name}-${start}-${end}` : null,
-    () => (name ? getBenchmark(name, start, end) : null),
+    key,
+    () => (name && start && end ? getBenchmark(name, start, end) : null),
     { revalidateOnFocus: false }
   );
 }
 
-export function useCompletedBacktests() {
-  return useSWR("completed-backtests", listCompletedBacktests, {
-    revalidateOnFocus: false,
-  });
+export function useMultipleBacktests(ids: string[]) {
+  return useSWR(
+    ids.length > 0 ? `multi-backtests-${ids.join(",")}` : null,
+    async () => {
+      const results = await Promise.all(ids.map((id) => getBacktest(id)));
+      return results;
+    },
+    { revalidateOnFocus: false }
+  );
 }
