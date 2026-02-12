@@ -76,6 +76,7 @@ export interface BacktestResult {
   equity_curve: Array<Record<string, unknown>>;
   trades: Array<Record<string, unknown>>;
   analysis: Record<string, unknown>;
+  performance?: Record<string, unknown>;
   strategy_score: { score: number; components: Record<string, number> };
   best_trade: Record<string, unknown> | null;
   best_stock: { code: string; net_pnl: number } | null;

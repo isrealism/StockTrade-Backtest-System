@@ -41,8 +41,22 @@ def _now_iso() -> str:
     return datetime.utcnow().isoformat() + "Z"
 
 
+def _sanitize_for_json(obj: Any) -> Any:
+    """Replace NaN/Infinity with None so JSON is valid."""
+    import math
+    if isinstance(obj, float):
+        if math.isnan(obj) or math.isinf(obj):
+            return None
+        return obj
+    if isinstance(obj, dict):
+        return {k: _sanitize_for_json(v) for k, v in obj.items()}
+    if isinstance(obj, (list, tuple)):
+        return [_sanitize_for_json(v) for v in obj]
+    return obj
+
+
 def _json_dumps(data: Any) -> str:
-    return json.dumps(data, ensure_ascii=False, default=str)
+    return json.dumps(_sanitize_for_json(data), ensure_ascii=False, default=str)
 
 
 def _json_loads(text: Optional[str]) -> Any:

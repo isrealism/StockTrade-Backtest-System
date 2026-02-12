@@ -30,15 +30,13 @@ export default function RootLayout({
 }) {
   return (
     <html lang="zh-CN" className="dark">
-      <head>
+      <body
+        className={`${inter.variable} ${jetbrainsMono.variable} font-sans antialiased`}
+      >
         <Script
           src="https://unpkg.com/lightweight-charts/dist/lightweight-charts.standalone.production.js"
           strategy="beforeInteractive"
         />
-      </head>
-      <body
-        className={`${inter.variable} ${jetbrainsMono.variable} font-sans antialiased`}
-      >
         <div className="flex h-screen overflow-hidden">
           <Sidebar />
           <main className="flex-1 overflow-auto scrollbar-thin">
