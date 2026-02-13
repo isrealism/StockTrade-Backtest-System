@@ -5,6 +5,7 @@ import { useBacktests, useBacktest } from "@/lib/hooks";
 import { BacktestSelector } from "@/components/results/backtest-selector";
 import { BenchmarkSelector } from "@/components/results/benchmark-selector";
 import { KpiCards } from "@/components/results/kpi-cards";
+import { ReturnBreakdown } from "@/components/results/return-breakdown";
 import { ExitReasonStats } from "@/components/results/exit-reason-stats";
 import { TradeTable } from "@/components/results/trade-table";
 import { PerformanceCharts } from "@/components/results/performance-charts";
@@ -75,6 +76,12 @@ export default function ResultsPage() {
             analysis={analysis}
             trades={trades}
             benchmark={benchmark}
+          />
+
+          {/* Return Breakdown */}
+          <ReturnBreakdown
+            analysis={analysis}
+            initialCapital={backtestDetail?.payload?.initial_capital ?? 1000000}
           />
 
           {/* Exit Reason Stats */}

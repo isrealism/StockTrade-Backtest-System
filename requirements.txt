@@ -4,3 +4,4 @@ tushare==1.4.21
 scipy==1.14.1
 fastapi==0.115.10
 uvicorn==0.30.6
+lightweight-charts
