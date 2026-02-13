@@ -1,11 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { useBacktests, useBacktest } from "@/lib/hooks";
+import { useBacktests, useBacktest, useBacktestAnalysis } from "@/lib/hooks";
 import { BacktestSelector } from "@/components/results/backtest-selector";
 import { BenchmarkSelector } from "@/components/results/benchmark-selector";
 import { KpiCards } from "@/components/results/kpi-cards";
 import { ReturnBreakdown } from "@/components/results/return-breakdown";
+import { ExcessReturnBreakdown } from "@/components/results/excess-return-breakdown";
 import { ExitReasonStats } from "@/components/results/exit-reason-stats";
 import { TradeTable } from "@/components/results/trade-table";
 import { PerformanceCharts } from "@/components/results/performance-charts";
@@ -20,6 +21,10 @@ export default function ResultsPage() {
   const { data: backtestDetail, isLoading: detailLoading } =
     useBacktest(selectedId);
 
+  // Get analysis with benchmark comparison
+  const { data: analysisData, isLoading: analysisLoading } =
+    useBacktestAnalysis(selectedId, benchmark);
+
   const completedBacktests =
     backtestList?.items?.filter((b) => b.status === "COMPLETED") || [];
 
@@ -27,7 +32,9 @@ export default function ResultsPage() {
   const metrics = backtestDetail?.metrics;
   const equityCurve = result?.equity_curve || [];
   const trades = result?.trades || [];
-  const analysis = result?.analysis as Record<string, Record<string, unknown>> | undefined;
+
+  // Use analysis from dedicated API if available, otherwise fallback to result
+  const analysis = (analysisData?.analysis || result?.analysis) as Record<string, Record<string, unknown>> | undefined;
 
   return (
     <div className="flex flex-col gap-6 p-6">
@@ -78,11 +85,31 @@ export default function ResultsPage() {
             benchmark={benchmark}
           />
 
-          {/* Return Breakdown */}
-          <ReturnBreakdown
-            analysis={analysis}
-            initialCapital={backtestDetail?.payload?.initial_capital ?? 1000000}
-          />
+          {/* Loading state for analysis */}
+          {analysisLoading && (
+            <div className="flex items-center justify-center py-8 rounded-lg border border-border bg-card">
+              <Loader2 className="h-5 w-5 animate-spin text-primary" />
+              <span className="ml-2 text-sm text-muted-foreground">
+                重新计算基准对比数据...
+              </span>
+            </div>
+          )}
+
+          {!analysisLoading && (
+            <>
+              {/* Return Breakdown */}
+              <ReturnBreakdown
+                analysis={analysis}
+                initialCapital={backtestDetail?.payload?.initial_capital ?? 1000000}
+              />
+
+              {/* Excess Return Breakdown */}
+              <ExcessReturnBreakdown
+                analysis={analysis}
+                benchmark={benchmark}
+              />
+            </>
+          )}
 
           {/* Exit Reason Stats */}
           <ExitReasonStats trades={trades} />

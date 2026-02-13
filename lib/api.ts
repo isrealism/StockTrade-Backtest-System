@@ -176,3 +176,13 @@ export async function getBenchmark(name: string, start: string, end: string) {
     `/api/benchmark?name=${encodeURIComponent(name)}&start=${start}&end=${end}`
   );
 }
+
+export async function getBacktestAnalysis(backtestId: string, benchmark: string = "none") {
+  return fetchAPI<{
+    backtest_id: string;
+    benchmark: string;
+    analysis: Record<string, unknown>;
+  }>(
+    `/api/backtests/${encodeURIComponent(backtestId)}/analysis?benchmark=${encodeURIComponent(benchmark)}`
+  );
+}

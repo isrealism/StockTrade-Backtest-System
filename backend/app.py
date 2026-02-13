@@ -266,10 +266,14 @@ class JobManager:
                 equity_df = pd.DataFrame(results.get("equity_curve", []))
                 trades_df = pd.DataFrame(results.get("trades", []))
 
+                # Get benchmark name from payload (optional)
+                benchmark_name = payload.get("benchmark_name")
+
                 analysis = PerformanceAnalyzer(
                     equity_curve=equity_df,
                     trades=trades_df,
                     initial_capital=float(payload.get("initial_capital", 1000000)),
+                    benchmark_name=benchmark_name if benchmark_name and benchmark_name != "none" else None,
                 ).analyze()
 
                 score = compute_strategy_score(analysis)
@@ -536,6 +540,80 @@ def get_kline(code: str, start: str = "", end: str = ""):
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/benchmark")
+def get_benchmark(name: str, start: str, end: str):
+    bench_dir = DATA_DIR / "index"
+    bench_path = bench_dir / f"{name}.csv"
+    if not bench_path.exists():
+        raise HTTPException(status_code=404, detail="Benchmark data not found.")
+    df = pd.read_csv(bench_path)
+    if "date" not in df.columns or "close" not in df.columns:
+        raise HTTPException(status_code=400, detail="Invalid benchmark data format.")
+    df["date"] = pd.to_datetime(df["date"])
+    df = df[(df["date"] >= pd.to_datetime(start)) & (df["date"] <= pd.to_datetime(end))]
+    if df.empty:
+        return {"series": []}
+    base = float(df["close"].iloc[0])
+    df["nav"] = df["close"] / base
+    series = [{"date": d.strftime("%Y-%m-%d"), "nav": float(v)} for d, v in zip(df["date"], df["nav"])]
+    return {"series": series}
+
+
+@app.get("/api/backtests/{backtest_id}/analysis")
+def get_backtest_analysis(backtest_id: str, benchmark: str = "none"):
+    """
+    Recompute analysis for a backtest with specified benchmark.
+
+    Args:
+        backtest_id: Backtest ID
+        benchmark: Benchmark name (e.g., "上证指数", "沪深300") or "none"
+
+    Returns:
+        Analysis results with benchmark comparison if specified
+    """
+    # Load backtest from database
+    rows = db_query("SELECT * FROM backtests WHERE id=?", (backtest_id,))
+    if not rows:
+        raise HTTPException(status_code=404, detail="Backtest not found.")
+    row = rows[0]
+
+    # Check if backtest is completed
+    if row["status"] != "COMPLETED":
+        raise HTTPException(status_code=400, detail="Backtest not completed.")
+
+    # Load result
+    result = _json_loads(row["result_json"])
+    if not result:
+        raise HTTPException(status_code=400, detail="No result data available.")
+
+    # Extract equity curve and trades
+    equity_df = pd.DataFrame(result.get("equity_curve", []))
+    trades_df = pd.DataFrame(result.get("trades", []))
+
+    # Get initial capital from payload
+    payload = _json_loads(row["payload_json"])
+    initial_capital = float(payload.get("initial_capital", 1000000)) if payload else 1000000
+
+    # Recompute analysis with benchmark
+    benchmark_name = benchmark if benchmark and benchmark != "none" else None
+
+    try:
+        analysis = PerformanceAnalyzer(
+            equity_curve=equity_df,
+            trades=trades_df,
+            initial_capital=initial_capital,
+            benchmark_name=benchmark_name,
+        ).analyze()
+
+        return {
+            "backtest_id": backtest_id,
+            "benchmark": benchmark,
+            "analysis": analysis
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to compute analysis: {str(e)}")
 
 
 @app.get("/api/benchmark")

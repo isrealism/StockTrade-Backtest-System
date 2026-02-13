@@ -6,6 +6,7 @@ import {
   getRankings,
   listTemplates,
   getBenchmark,
+  getBacktestAnalysis,
 } from "./api";
 
 export function useConfig() {
@@ -73,6 +74,19 @@ export function useMultipleBacktests(ids: string[]) {
       const results = await Promise.all(ids.map((id) => getBacktest(id)));
       return results;
     },
+    { revalidateOnFocus: false }
+  );
+  return { data, error, isLoading };
+}
+
+export function useBacktestAnalysis(backtestId: string | null, benchmark: string = "none") {
+  const key =
+    backtestId && benchmark
+      ? `backtest-analysis-${backtestId}-${benchmark}`
+      : null;
+  const { data, error, isLoading } = useSWR(
+    key,
+    () => (backtestId ? getBacktestAnalysis(backtestId, benchmark) : null),
     { revalidateOnFocus: false }
   );
   return { data, error, isLoading };
