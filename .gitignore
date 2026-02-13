@@ -5,6 +5,8 @@ index_data/
 
 # Python
 __pycache__/
+backend/_pycache_/
+backtest/_pycache_/
 *.pyc
 .venv/
 .env
