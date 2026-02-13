@@ -60,6 +60,12 @@ export function BacktestForm({ selectors, sellStrategies }: BacktestFormProps) {
   // Selector config
   const [selectorList, setSelectorList] = useState(selectors);
   const [combinationMode, setCombinationMode] = useState("OR");
+  const [timeWindowDays, setTimeWindowDays] = useState(5);
+  const [triggerSelectors, setTriggerSelectors] = useState<string[]>([]);
+  const [triggerLogic, setTriggerLogic] = useState("OR");
+  const [confirmSelectors, setConfirmSelectors] = useState<string[]>([]);
+  const [confirmLogic, setConfirmLogic] = useState("OR");
+  const [buyTiming, setBuyTiming] = useState("confirmation_day");
 
   // Sell strategy config
   const [selectedSellStrategy, setSelectedSellStrategy] = useState(
@@ -70,12 +76,26 @@ export function BacktestForm({ selectors, sellStrategies }: BacktestFormProps) {
   const handleSubmit = useCallback(async () => {
     setIsSubmitting(true);
     try {
+      const selectorCombination: Record<string, unknown> = {
+        mode: combinationMode,
+      };
+
+      // Add time window for TIME_WINDOW and SEQUENTIAL_CONFIRMATION modes
+      if (combinationMode === "TIME_WINDOW" || combinationMode === "SEQUENTIAL_CONFIRMATION") {
+        selectorCombination.time_window_days = timeWindowDays;
+      }
+
+      // Add sequential confirmation specific settings
+      if (combinationMode === "SEQUENTIAL_CONFIRMATION") {
+        selectorCombination.trigger_selectors = triggerSelectors;
+        selectorCombination.trigger_logic = triggerLogic;
+        selectorCombination.confirm_selectors = confirmSelectors;
+        selectorCombination.confirm_logic = confirmLogic;
+        selectorCombination.buy_timing = buyTiming;
+      }
+
       const buyConfig = {
-        selector_combination: {
-          mode: combinationMode,
-          time_window_days: 5,
-          required_selectors: [],
-        },
+        selector_combination: selectorCombination,
         selectors: selectorList,
       };
 
@@ -114,7 +134,9 @@ export function BacktestForm({ selectors, sellStrategies }: BacktestFormProps) {
   }, [
     name, startDate, endDate, initialCapital, maxPositions, positionSizing,
     commissionRate, stampTaxRate, slippageRate, lookbackDays, stockPoolType,
-    customCodes, selectorList, combinationMode, selectedSellStrategy, router,
+    customCodes, selectorList, combinationMode, timeWindowDays,
+    triggerSelectors, triggerLogic, confirmSelectors, confirmLogic, buyTiming,
+    selectedSellStrategy, router,
   ]);
 
   return (
@@ -342,6 +364,18 @@ export function BacktestForm({ selectors, sellStrategies }: BacktestFormProps) {
             onChange={setSelectorList}
             combinationMode={combinationMode}
             onCombinationModeChange={setCombinationMode}
+            timeWindowDays={timeWindowDays}
+            onTimeWindowDaysChange={setTimeWindowDays}
+            triggerSelectors={triggerSelectors}
+            onTriggerSelectorsChange={setTriggerSelectors}
+            triggerLogic={triggerLogic}
+            onTriggerLogicChange={setTriggerLogic}
+            confirmSelectors={confirmSelectors}
+            onConfirmSelectorsChange={setConfirmSelectors}
+            confirmLogic={confirmLogic}
+            onConfirmLogicChange={setConfirmLogic}
+            buyTiming={buyTiming}
+            onBuyTimingChange={setBuyTiming}
           />
         </TabsContent>
 
