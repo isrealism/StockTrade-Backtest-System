@@ -166,7 +166,8 @@ class PortfolioManager:
             available_cash = projected_cash if projected_cash is not None else self.get_available_cash()
 
             # Calculate allocation: distribute available cash among remaining slots
-            remaining_slots = max(1, self.max_positions - total_positions + 1)
+            # Note: projected_cash already accounts for pending buy orders (see get_projected_cash)
+            remaining_slots = max(1, self.max_positions - total_positions)
             target_per_position = available_cash / remaining_slots
 
             if target_per_position <= 0:
@@ -278,6 +279,11 @@ class PortfolioManager:
             execution_date=execution_date,
             buy_strategy=buy_strategy
         )
+
+        # Pre-estimate total_cost for projected cash calculation
+        # This allows get_projected_cash() to account for this order when processing subsequent signals
+        estimated_cost = self.execution_engine.estimate_buy_cost(shares, price)
+        order.total_cost = estimated_cost
 
         self.pending_orders.append(order)
         return order
@@ -425,12 +431,20 @@ class PortfolioManager:
         self.cash -= order.total_cost
 
         # Paranoid check after deduction (catch floating point errors)
-        if self.cash < -0.01:
+        # Allow only minimal floating point tolerance (-1e-6, ~0.000001 yuan)
+        if self.cash < -1e-6:
             # This is a serious bug - restore cash and fail order
             self.cash += order.total_cost
-            print(f"ERROR: Cash went negative after deduction: {self.cash:.2f}. Order rejected.")
+            print(
+                f"ERROR: Cash went negative after deduction: {self.cash:.8f}. "
+                f"This indicates a position sizing bug. Order rejected for {order.code}."
+            )
             order.fail()
             return
+
+        # If cash is slightly negative due to floating point error, round to zero
+        if self.cash < 0:
+            self.cash = 0.0
 
         # Create position
         position = Position(
@@ -476,13 +490,13 @@ class PortfolioManager:
 
         self.trades.append(trade)
 
-        # Add proceeds (T+1 settlement)
+        # Add proceeds (T+1 settlement for withdrawal)
         settlement_date = execution_date + timedelta(days=1)
         self.settlement_tracker.add_pending_proceeds(order.net_proceeds, settlement_date)
-        
+
         # Add proceeds immediately (T+0 availability for trading)
-        # In A-shares, sell proceeds are immediately available for new buys
-        #self.cash += order.net_proceeds
+        # In A-shares, sell proceeds are immediately available for new buys (but not withdrawal)
+        self.cash += order.net_proceeds
 
         # Remove position
         del self.positions[order.code]
@@ -511,10 +525,26 @@ class PortfolioManager:
         Get projected cash available on execution date (T+1).
 
         Includes proceeds that will settle on execution_date.
+        Subtracts pending buy orders scheduled for same execution_date.
         Applies a safety buffer to reduce open-gap risk.
         """
         projected = self.cash
+
+        # Add pending proceeds that will settle on execution_date
         projected += self.settlement_tracker.pending_proceeds.get(execution_date, 0.0)
+
+        # Subtract pending buy orders scheduled for same execution_date
+        # (these will consume cash when executed)
+        for order in self.pending_orders:
+            if (order.action == OrderAction.BUY and
+                order.execution_date == execution_date and
+                order.status == OrderStatus.PENDING):
+                # Subtract estimated cost
+                # Note: order.total_cost may not be set yet for newly created orders
+                # Use shares * price * (1 + commission + slippage) as estimate
+                if order.total_cost is not None and order.total_cost > 0:
+                    projected -= order.total_cost
+
         return projected * buffer_pct
 
     def get_position(self, code: str) -> Optional[Position]:

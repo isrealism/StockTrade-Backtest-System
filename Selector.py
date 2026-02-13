@@ -12,7 +12,14 @@ def compute_kdj(df: pd.DataFrame, n: int = 9) -> pd.DataFrame:
 
     low_n = df["low"].rolling(window=n, min_periods=1).min()
     high_n = df["high"].rolling(window=n, min_periods=1).max()
-    rsv = (df["close"] - low_n) / (high_n - low_n + 1e-9) * 100
+
+    # Avoid division by zero: when high == low (flat price), use neutral RSV of 50
+    price_range = high_n - low_n
+    rsv = np.where(
+        price_range > 1e-6,  # Non-zero range
+        (df["close"] - low_n) / price_range * 100,
+        50.0  # Neutral value when price is flat
+    )
 
     K = np.zeros_like(rsv, dtype=float)
     D = np.zeros_like(rsv, dtype=float)
@@ -20,7 +27,7 @@ def compute_kdj(df: pd.DataFrame, n: int = 9) -> pd.DataFrame:
         if i == 0:
             K[i] = D[i] = 50.0
         else:
-            K[i] = 2 / 3 * K[i - 1] + 1 / 3 * rsv.iloc[i]
+            K[i] = 2 / 3 * K[i - 1] + 1 / 3 * rsv[i]
             D[i] = 2 / 3 * D[i - 1] + 1 / 3 * K[i]
     J = 3 * K - 2 * D
     return df.assign(K=K, D=D, J=J)
@@ -45,8 +52,15 @@ def compute_rsv(
     """
     low_n = df["low"].rolling(window=n, min_periods=1).min()
     high_close_n = df["close"].rolling(window=n, min_periods=1).max()
-    rsv = (df["close"] - low_n) / (high_close_n - low_n + 1e-9) * 100.0
-    return rsv
+
+    # Avoid division by zero: when high == low (flat price), use neutral RSV of 50
+    price_range = high_close_n - low_n
+    rsv = np.where(
+        price_range > 1e-6,
+        (df["close"] - low_n) / price_range * 100.0,
+        50.0
+    )
+    return pd.Series(rsv, index=df.index)
 
 
 def compute_dif(df: pd.DataFrame, fast: int = 12, slow: int = 26) -> pd.Series:

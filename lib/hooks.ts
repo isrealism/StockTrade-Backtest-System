@@ -9,7 +9,7 @@ import {
 } from "./api";
 
 export function useConfig() {
-  return useSWR("config", getConfig, {
+  const { data, error, isLoading } = useSWR("config", getConfig, {
     revalidateOnFocus: false,
     dedupingInterval: 60000,
     onErrorRetry: (error, _key, _config, revalidate, { retryCount }) => {
@@ -18,32 +18,37 @@ export function useConfig() {
       setTimeout(() => revalidate({ retryCount }), 5000);
     },
   });
+  return { data, error, isLoading };
 }
 
 export function useBacktests() {
-  return useSWR("backtests", listBacktests, {
+  const { data, error, isLoading } = useSWR("backtests", listBacktests, {
     refreshInterval: 3000,
   });
+  return { data, error, isLoading };
 }
 
 export function useBacktest(id: string | null) {
-  return useSWR(id ? `backtest-${id}` : null, () =>
+  const { data, error, isLoading } = useSWR(id ? `backtest-${id}` : null, () =>
     id ? getBacktest(id) : null,
     {
       refreshInterval: (data) =>
         data?.status === "RUNNING" || data?.status === "PENDING" ? 1500 : 0,
     }
   );
+  return { data, error, isLoading };
 }
 
 export function useRankings(metric: string) {
-  return useSWR(`rankings-${metric}`, () => getRankings(metric));
+  const { data, error, isLoading } = useSWR(`rankings-${metric}`, () => getRankings(metric));
+  return { data, error, isLoading };
 }
 
 export function useTemplates() {
-  return useSWR("templates", listTemplates, {
+  const { data, error, isLoading } = useSWR("templates", listTemplates, {
     revalidateOnFocus: false,
   });
+  return { data, error, isLoading };
 }
 
 export function useBenchmark(
@@ -53,15 +58,16 @@ export function useBenchmark(
 ) {
   const key =
     name && start && end ? `benchmark-${name}-${start}-${end}` : null;
-  return useSWR(
+  const { data, error, isLoading } = useSWR(
     key,
     () => (name && start && end ? getBenchmark(name, start, end) : null),
     { revalidateOnFocus: false }
   );
+  return { data, error, isLoading };
 }
 
 export function useMultipleBacktests(ids: string[]) {
-  return useSWR(
+  const { data, error, isLoading } = useSWR(
     ids.length > 0 ? `multi-backtests-${ids.join(",")}` : null,
     async () => {
       const results = await Promise.all(ids.map((id) => getBacktest(id)));
@@ -69,4 +75,5 @@ export function useMultipleBacktests(ids: string[]) {
     },
     { revalidateOnFocus: false }
   );
+  return { data, error, isLoading };
 }

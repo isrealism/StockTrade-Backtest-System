@@ -159,7 +159,8 @@ class BacktestEngine:
                 df = df.sort_values('date').reset_index(drop=True)
 
                 # Load data from lookback period, but only up to backtest end
-                # This gives selectors historical context while preventing lookahead bias
+                # NOTE: Pre-loading to end_date is for efficiency. Lookahead bias is prevented
+                # by filtering to current_date during signal generation (see get_buy_signals, check_sell_signals)
                 df = df[(df['date'] >= data_start_date) & (df['date'] <= self.end_date)]
 
                 if len(df) == 0:
@@ -184,18 +185,59 @@ class BacktestEngine:
             all_dates.update(backtest_dates)
 
         self.trading_dates = sorted(list(all_dates))
+
+        # Validate trading dates
+        if len(self.trading_dates) == 0:
+            raise ValueError(
+                f"No trading dates found in data. "
+                f"Check if data files exist in {self.data_dir} and cover the backtest period "
+                f"({self.start_date.date()} to {self.end_date.date()})"
+            )
+
         self.log(f"Trading dates: {len(self.trading_dates)} days from {self.trading_dates[0].date()} to {self.trading_dates[-1].date()}")
 
         # Validate data quality
         self.validate_data_quality()
 
     def validate_data_quality(self):
-        """Check if data meets selector requirements."""
+        """Check if data meets selector requirements and validate OHLC consistency."""
         self.log("\nValidating data quality...")
 
         if not self.market_data:
             self.log("  WARNING: No market data loaded")
             return
+
+        # Track OHLC inconsistencies
+        ohlc_issues = []
+        price_issues = []
+
+        # Check OHLC consistency: low <= open/close <= high
+        for code, df in self.market_data.items():
+            # Check for negative prices
+            if (df['low'] < 0).any():
+                price_issues.append(f"{code}: negative prices detected")
+
+            # Check OHLC consistency
+            invalid_rows = df[
+                (df['low'] > df['open']) |
+                (df['low'] > df['close']) |
+                (df['high'] < df['open']) |
+                (df['high'] < df['close'])
+            ]
+            if len(invalid_rows) > 0:
+                ohlc_issues.append(f"{code}: {len(invalid_rows)} rows violate OHLC constraints")
+
+        if ohlc_issues:
+            self.log("  WARNING: OHLC consistency issues found:")
+            for issue in ohlc_issues[:10]:  # Show first 10
+                self.log(f"    - {issue}")
+            if len(ohlc_issues) > 10:
+                self.log(f"    ... and {len(ohlc_issues) - 10} more")
+
+        if price_issues:
+            self.log("  WARNING: Price validation issues:")
+            for issue in price_issues[:5]:
+                self.log(f"    - {issue}")
 
         # 检查在start_date时每只股票的数据长度，以确保常用指标可计算
         lengths_at_start = []
@@ -734,6 +776,68 @@ class BacktestEngine:
             self.log(f"  Portfolio: {len(self.portfolio.positions)} positions, Cash: {self.portfolio.cash:,.0f}, Total: {self.portfolio.total_value:,.0f}")
             if progress_callback:
                 progress_callback(idx, total_days, date)
+
+        # Force liquidate all positions at the end of backtest
+        if len(self.portfolio.positions) > 0:
+            self.log("\n" + "="*80)
+            self.log("FORCE LIQUIDATION - Closing all positions")
+            self.log("="*80)
+
+            # Get the last trading date
+            last_date = self.trading_dates[-1]
+
+            # Generate sell orders for all positions
+            positions_to_close = list(self.portfolio.positions.keys())
+            for code in positions_to_close:
+                self.portfolio.generate_sell_order(code, last_date, "End of backtest - forced liquidation")
+                self.log(f"  Generated sell order for {code}")
+
+            # Create a virtual next trading day to execute these orders
+            # Use last_date + 1 day for execution
+            virtual_execution_date = last_date + timedelta(days=1)
+
+            self.log(f"\n--- Virtual Execution Date: {virtual_execution_date.date()} ---")
+
+            # Process settlement
+            self.portfolio.process_settlement(virtual_execution_date)
+
+            # Execute pending orders
+            # Prepare market data: use last trading date's prices for execution
+            # (virtual date doesn't exist in data, so we use last available data)
+            market_data_virtual = {}
+            for code, df in self.market_data.items():
+                df_last = df[df['date'] == last_date]
+                if len(df_last) > 0:
+                    # Create a virtual row with last_date's prices but virtual_execution_date
+                    df_virtual = df_last.copy()
+                    df_virtual['date'] = virtual_execution_date
+                    # Append to original df for execute_pending_orders to find
+                    market_data_virtual[code] = pd.concat([df, df_virtual], ignore_index=True)
+                else:
+                    market_data_virtual[code] = df
+
+            executed_orders = self.portfolio.execute_pending_orders(virtual_execution_date, market_data_virtual)
+
+            # Log execution results
+            from .data_structures import OrderAction, OrderStatus
+            for order in executed_orders:
+                if order.status.value == "EXECUTED":
+                    self.log(f"  EXECUTED {order.action.value}: {order.code} x {order.shares} @ {order.execution_price:.2f}")
+                else:
+                    self.log(f"  FAILED {order.action.value}: {order.code} - {order.reason}")
+
+            # Update equity curve one final time
+            # Use last available market data for position valuation
+            final_market_data = {}
+            for code in self.market_data:
+                df = self.market_data[code]
+                df_last = df[df['date'] == last_date]
+                if len(df_last) > 0:
+                    final_market_data[code] = df_last.iloc[-1]
+
+            self.portfolio.update_equity_curve(virtual_execution_date, final_market_data)
+
+            self.log(f"  Final portfolio: {len(self.portfolio.positions)} positions, Cash: {self.portfolio.cash:,.0f}, Total: {self.portfolio.total_value:,.0f}")
 
         self.log("\n" + "="*80)
         self.log("BACKTEST COMPLETE")

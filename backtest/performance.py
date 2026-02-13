@@ -168,7 +168,10 @@ class PerformanceAnalyzer:
             'total_value': ['first', 'last']
         })
 
+        # Flatten MultiIndex columns: ('total_value', 'first') -> 'start_value'
+        monthly_returns.columns = monthly_returns.columns.droplevel(0)
         monthly_returns.columns = ['start_value', 'end_value']
+
         monthly_returns['return'] = (
             (monthly_returns['end_value'] - monthly_returns['start_value']) /
             monthly_returns['start_value']
@@ -179,13 +182,28 @@ class PerformanceAnalyzer:
             for k, v in monthly_returns['return'].to_dict().items()
         } if not monthly_returns.empty else {}
 
+        # Calculate realized vs unrealized returns
+        total_profit = final_value - self.initial_capital
+        realized_pnl = 0.0
+        unrealized_pnl = 0.0
+
+        if len(self.trades) > 0:
+            # Realized P&L from completed trades
+            realized_pnl = self.trades['net_pnl'].sum()
+            # Unrealized P&L = total profit - realized profit
+            unrealized_pnl = total_profit - realized_pnl
+
         return {
             'total_return': total_return,
             'total_return_pct': total_return * 100,
             'annualized_return': annualized_return,
             'annualized_return_pct': annualized_return * 100,
             'final_value': final_value,
-            'total_profit': final_value - self.initial_capital,
+            'total_profit': total_profit,
+            'realized_pnl': realized_pnl,
+            'realized_pnl_pct': (realized_pnl / self.initial_capital) * 100 if self.initial_capital > 0 else 0,
+            'unrealized_pnl': unrealized_pnl,
+            'unrealized_pnl_pct': (unrealized_pnl / self.initial_capital) * 100 if self.initial_capital > 0 else 0,
             'trading_days': len(self.equity_curve),
             'calendar_days': days,
             'monthly_returns': monthly_returns_dict

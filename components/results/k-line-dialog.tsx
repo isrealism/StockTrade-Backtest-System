@@ -28,14 +28,14 @@ interface KLineDialogProps {
 }
 
 /* ── Colours ────────────────────────────────────────── */
-const UP_COLOR = "#22c55e";
-const DOWN_COLOR = "#ef4444";
+const UP_COLOR = "#ef4444";
+const DOWN_COLOR = "#22c55e";
 const BG_COLOR = "#0f1117";
 const GRID_COLOR = "rgba(255,255,255,0.04)";
 const TEXT_COLOR = "rgba(255,255,255,0.45)";
 const BORDER_COLOR = "rgba(255,255,255,0.08)";
-const VOL_UP = "rgba(34,197,94,0.35)";
-const VOL_DOWN = "rgba(239,68,68,0.35)";
+const VOL_UP = "rgba(239,68,68,0.35)";
+const VOL_DOWN = "rgba(34,197,94,0.35)";
 
 export function KLineDialog({ trade, onClose }: KLineDialogProps) {
   const chartContainerRef = useRef<HTMLDivElement>(null);
@@ -164,7 +164,6 @@ export function KLineDialog({ trade, onClose }: KLineDialogProps) {
 
       chart.priceScale("volume").applyOptions({
         scaleMargins: { top: 0.82, bottom: 0 },
-        drawTicks: false,
       });
 
       volumeSeries.setData(
@@ -296,8 +295,26 @@ export function KLineDialog({ trade, onClose }: KLineDialogProps) {
 
   useEffect(() => {
     if (trade) {
-      const timeout = setTimeout(initChart, 80);
-      return () => clearTimeout(timeout);
+      let cleanup: (() => void) | undefined;
+      let cancelled = false;
+
+      // Delay chart initialization to ensure DOM is ready
+      const timeout = setTimeout(async () => {
+        const result = await initChart();
+        if (!cancelled) {
+          cleanup = result;
+        } else {
+          // If effect was cleaned up before async initChart completed, call cleanup immediately
+          result?.();
+        }
+      }, 80);
+
+      return () => {
+        cancelled = true;
+        clearTimeout(timeout);
+        // Call cleanup if chart was initialized
+        cleanup?.();
+      };
     }
   }, [trade, initChart]);
 
