@@ -101,6 +101,22 @@ class BacktestEngine:
         self.signal_history: Dict[datetime, Dict[str, List[str]]] = {}
         # Structure: {date: {selector_name: [code1, code2, ...]}}
 
+        # Sequential confirmation settings (for SEQUENTIAL_CONFIRMATION mode)
+        self.trigger_selectors: List[str] = []
+        self.trigger_logic = "OR"
+        self.confirm_selectors: List[str] = []
+        self.confirm_logic = "OR"
+        self.buy_timing = "confirmation_day"
+
+        # Track pending trigger signals waiting for confirmation
+        # Structure: {code: {
+        #   'trigger_date': datetime,
+        #   'expiration_date': datetime,
+        #   'trigger_signal': BuySignal,
+        #   'triggered_by': [selector_names]
+        # }}
+        self.pending_triggers: Dict[str, Dict[str, Any]] = {}
+
         # Sell strategy
         self.sell_strategy = None
 
@@ -288,8 +304,29 @@ class BacktestEngine:
             self.time_window_days = comb.get('time_window_days', 5)
             self.required_selectors = comb.get('required_selectors', [])
             self.log(f"Selector combination mode: {self.combination_mode}")
+
             if self.combination_mode == "TIME_WINDOW":
                 self.log(f"  Time window: {self.time_window_days} days")
+
+            if self.combination_mode == "SEQUENTIAL_CONFIRMATION":
+                # Load sequential confirmation settings
+                self.trigger_selectors = comb.get('trigger_selectors', [])
+                self.trigger_logic = comb.get('trigger_logic', 'OR')
+                self.confirm_selectors = comb.get('confirm_selectors', [])
+                self.confirm_logic = comb.get('confirm_logic', 'OR')
+                self.buy_timing = comb.get('buy_timing', 'confirmation_day')
+
+                # Validation
+                if not self.trigger_selectors:
+                    raise ValueError("SEQUENTIAL_CONFIRMATION mode requires 'trigger_selectors'")
+                if not self.confirm_selectors:
+                    raise ValueError("SEQUENTIAL_CONFIRMATION mode requires 'confirm_selectors'")
+
+                self.log(f"  Trigger selectors ({self.trigger_logic}): {', '.join(self.trigger_selectors)}")
+                self.log(f"  Confirm selectors ({self.confirm_logic}): {', '.join(self.confirm_selectors)}")
+                self.log(f"  Time window: {self.time_window_days} days")
+                self.log(f"  Buy timing: {self.buy_timing}")
+
             if self.required_selectors:
                 self.log(f"  Required selectors: {', '.join(self.required_selectors)}")
         else:
@@ -537,6 +574,12 @@ class BacktestEngine:
 
             return list(signals_by_code.values())
 
+        elif self.combination_mode == "SEQUENTIAL_CONFIRMATION":
+            return self._apply_sequential_confirmation(
+                signals_by_selector,
+                current_date
+            )
+
         else:
             raise ValueError(f"Unknown combination mode: {self.combination_mode}")
 
@@ -557,6 +600,192 @@ class BacktestEngine:
         dates_to_remove = [d for d in self.signal_history.keys() if d < cutoff_date]
         for d in dates_to_remove:
             del self.signal_history[d]
+
+    def _apply_sequential_confirmation(
+        self,
+        signals_by_selector: Dict[str, List[BuySignal]],
+        current_date: datetime
+    ) -> List[BuySignal]:
+        """
+        Apply sequential confirmation logic.
+
+        Process:
+        1. Check for new trigger signals from trigger_selectors
+        2. Add new triggers to pending_triggers
+        3. Check if pending triggers are confirmed by confirm_selectors
+        4. Generate buy signals for confirmed triggers
+        5. Clean up expired pending triggers
+
+        Args:
+            signals_by_selector: {selector_class: [BuySignal, ...]}
+            current_date: Current trading date
+
+        Returns:
+            List of BuySignals (only for confirmed triggers)
+        """
+        # Step 1: Separate trigger signals and confirmation signals
+        trigger_signals: Dict[str, List[BuySignal]] = {}
+        confirm_signals: Dict[str, List[BuySignal]] = {}
+
+        for selector_name, signals in signals_by_selector.items():
+            if selector_name in self.trigger_selectors:
+                trigger_signals[selector_name] = signals
+            if selector_name in self.confirm_selectors:
+                confirm_signals[selector_name] = signals
+
+        # Step 2: Check for NEW trigger signals
+        new_triggers = self._evaluate_trigger_logic(trigger_signals)
+
+        # Add new triggers to pending (not yet confirmed)
+        for signal in new_triggers:
+            if signal.code not in self.pending_triggers:
+                expiration_date = current_date + timedelta(days=self.time_window_days)
+                self.pending_triggers[signal.code] = {
+                    'trigger_date': current_date,
+                    'expiration_date': expiration_date,
+                    'trigger_signal': signal,
+                    'triggered_by': [s.strategy_name for s in trigger_signals.values() for s in s if s.code == signal.code]
+                }
+                self.log(f"  TRIGGER: {signal.code} ({signal.strategy_alias}) - awaiting confirmation by {expiration_date.date()}")
+
+        # Step 3: Check for CONFIRMATIONS
+        confirmed_codes = self._evaluate_confirm_logic(confirm_signals)
+        confirmed_signals = []
+
+        for code in confirmed_codes:
+            if code in self.pending_triggers:
+                pending = self.pending_triggers[code]
+
+                # Confirmation found!
+                self.log(f"  CONFIRMED: {code} (trigger: {pending['trigger_date'].date()}, confirm: {current_date.date()})")
+
+                # Determine buy signal timing
+                if self.buy_timing == "trigger_day":
+                    # Use original trigger signal (but only if we're still before expiration)
+                    buy_signal = pending['trigger_signal']
+                else:  # confirmation_day (default)
+                    # Create new signal with confirmation date
+                    buy_signal = BuySignal(
+                        code=code,
+                        date=current_date,  # Use confirmation date
+                        strategy_name=pending['trigger_signal'].strategy_name,
+                        strategy_alias=f"{pending['trigger_signal'].strategy_alias} (confirmed)",
+                        score=pending['trigger_signal'].score,
+                        signal_data=pending['trigger_signal'].signal_data
+                    )
+
+                confirmed_signals.append(buy_signal)
+
+                # Remove from pending (confirmed)
+                del self.pending_triggers[code]
+
+        # Step 4: Clean up expired pending triggers
+        expired_codes = [
+            code for code, pending in self.pending_triggers.items()
+            if current_date > pending['expiration_date']
+        ]
+
+        for code in expired_codes:
+            pending = self.pending_triggers[code]
+            self.log(f"  EXPIRED: {code} (triggered {pending['trigger_date'].date()}, no confirmation)")
+            del self.pending_triggers[code]
+
+        return confirmed_signals
+
+    def _evaluate_trigger_logic(
+        self,
+        trigger_signals: Dict[str, List[BuySignal]]
+    ) -> List[BuySignal]:
+        """
+        Evaluate trigger logic (AND/OR) on trigger_selectors.
+
+        Returns list of BuySignals that satisfy trigger conditions.
+        """
+        if self.trigger_logic == "OR":
+            # Any trigger selector can activate
+            all_signals = []
+            for signals in trigger_signals.values():
+                all_signals.extend(signals)
+
+            # Deduplicate by code (keep highest score)
+            signals_by_code = {}
+            for signal in all_signals:
+                if signal.code not in signals_by_code:
+                    signals_by_code[signal.code] = signal
+                elif signal.score > signals_by_code[signal.code].score:
+                    signals_by_code[signal.code] = signal
+
+            return list(signals_by_code.values())
+
+        elif self.trigger_logic == "AND":
+            # All trigger selectors must pick the same stock
+            if len(trigger_signals) < len(self.trigger_selectors):
+                # Not all trigger selectors fired
+                return []
+
+            # Find stocks selected by ALL trigger selectors
+            signals_by_code: Dict[str, List[BuySignal]] = {}
+            for selector_name, signals in trigger_signals.items():
+                for signal in signals:
+                    if signal.code not in signals_by_code:
+                        signals_by_code[signal.code] = []
+                    signals_by_code[signal.code].append(signal)
+
+            # Keep only stocks selected by ALL required selectors
+            final_signals = []
+            for code, signals in signals_by_code.items():
+                selector_names = {s.strategy_name for s in signals}
+                if len(selector_names) >= len(self.trigger_selectors):
+                    # Use signal with highest score
+                    best_signal = max(signals, key=lambda s: s.score)
+                    final_signals.append(best_signal)
+
+            return final_signals
+
+        else:
+            raise ValueError(f"Unknown trigger_logic: {self.trigger_logic}")
+
+    def _evaluate_confirm_logic(
+        self,
+        confirm_signals: Dict[str, List[BuySignal]]
+    ) -> List[str]:
+        """
+        Evaluate confirmation logic (AND/OR) on confirm_selectors.
+
+        Returns list of stock codes that satisfy confirmation conditions.
+        """
+        if self.confirm_logic == "OR":
+            # Any confirm selector can confirm
+            confirmed_codes = set()
+            for signals in confirm_signals.values():
+                for signal in signals:
+                    confirmed_codes.add(signal.code)
+            return list(confirmed_codes)
+
+        elif self.confirm_logic == "AND":
+            # All confirm selectors must pick the same stock
+            if len(confirm_signals) < len(self.confirm_selectors):
+                # Not all confirm selectors fired
+                return []
+
+            # Find stocks selected by ALL confirm selectors
+            signals_by_code: Dict[str, List[str]] = {}
+            for selector_name, signals in confirm_signals.items():
+                for signal in signals:
+                    if signal.code not in signals_by_code:
+                        signals_by_code[signal.code] = []
+                    signals_by_code[signal.code].append(selector_name)
+
+            # Keep only stocks confirmed by ALL required selectors
+            confirmed_codes = []
+            for code, selector_names in signals_by_code.items():
+                if len(set(selector_names)) >= len(self.confirm_selectors):
+                    confirmed_codes.append(code)
+
+            return confirmed_codes
+
+        else:
+            raise ValueError(f"Unknown confirm_logic: {self.confirm_logic}")
 
     def check_sell_signals(self, date: datetime) -> List[tuple[str, str]]:
         """

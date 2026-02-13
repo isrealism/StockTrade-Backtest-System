@@ -581,6 +581,19 @@ class PerformanceAnalyzer:
         else:
             print("  (No completed trades)")
 
+        # Benchmark Comparison (if available)
+        if 'benchmark' in results and results['benchmark']:
+            print("\n--- BENCHMARK COMPARISON ---")
+            bm = results['benchmark']
+            print(f"Benchmark:             {bm.get('benchmark_name', 'N/A'):>15}")
+            print(f"Benchmark Return:      {bm.get('benchmark_total_return_pct', 0):>14.2f}%")
+            print(f"Benchmark Ann. Return: {bm.get('benchmark_annualized_return_pct', 0):>14.2f}%")
+            print(f"Excess Return:         {bm.get('excess_return_pct', 0):>14.2f}%")
+            print(f"Alpha (Jensen):        {bm.get('alpha_pct', 0):>14.2f}%")
+            print(f"Beta:                  {bm.get('beta', 0):>15.2f}")
+            print(f"Tracking Error:        {bm.get('tracking_error_pct', 0):>14.2f}%")
+            print(f"Information Ratio:     {bm.get('information_ratio', 0):>15.2f}")
+
         # Exit Reasons
         if 'exit_reasons' in results.get('distributions', {}):
             print("\n--- EXIT REASONS ---")

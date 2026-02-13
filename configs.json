@@ -4,6 +4,52 @@
     "time_window_days": 5,
     "required_selectors": []
   },
+
+  "_comment_sequential_confirmation": "--- Example SEQUENTIAL_CONFIRMATION configurations ---",
+  "_example_1": {
+    "_description": "Single trigger + single confirm (most common use case)",
+    "mode": "SEQUENTIAL_CONFIRMATION",
+    "time_window_days": 5,
+    "trigger_selectors": ["BBIKDJSelector"],
+    "trigger_logic": "OR",
+    "confirm_selectors": ["MA60CrossVolumeWaveSelector"],
+    "confirm_logic": "OR",
+    "buy_timing": "confirmation_day"
+  },
+
+  "_example_2": {
+    "_description": "Multiple triggers (any one) + multiple confirms (any one)",
+    "mode": "SEQUENTIAL_CONFIRMATION",
+    "time_window_days": 5,
+    "trigger_selectors": ["BBIKDJSelector", "SuperB1Selector"],
+    "trigger_logic": "OR",
+    "confirm_selectors": ["MA60CrossVolumeWaveSelector", "BigBullishVolumeSelector"],
+    "confirm_logic": "OR",
+    "buy_timing": "confirmation_day"
+  },
+
+  "_example_3": {
+    "_description": "Single trigger + multiple confirms (all required)",
+    "mode": "SEQUENTIAL_CONFIRMATION",
+    "time_window_days": 3,
+    "trigger_selectors": ["BBIKDJSelector"],
+    "trigger_logic": "OR",
+    "confirm_selectors": ["MA60CrossVolumeWaveSelector", "BigBullishVolumeSelector"],
+    "confirm_logic": "AND",
+    "buy_timing": "confirmation_day"
+  },
+
+  "_example_4": {
+    "_description": "Multiple triggers (all required) + single confirm",
+    "mode": "SEQUENTIAL_CONFIRMATION",
+    "time_window_days": 5,
+    "trigger_selectors": ["BBIKDJSelector", "PeakKDJSelector"],
+    "trigger_logic": "AND",
+    "confirm_selectors": ["BigBullishVolumeSelector"],
+    "confirm_logic": "OR",
+    "buy_timing": "confirmation_day"
+  },
+
   "selectors": [
     {
       "class": "BBIKDJSelector",
