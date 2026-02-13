@@ -14,7 +14,7 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Z哥量化回测系统",
+  title: "A股量化回测系统",
   description: "A股量化交易回测系统 - 策略配置、回测运行、结果分析",
 };
 

@@ -60,7 +60,7 @@ export function Sidebar() {
         {!collapsed && (
           <div className="min-w-0">
             <h1 className="truncate text-sm font-semibold text-foreground">
-              Z哥量化系统
+              A股量化交易回测系统
             </h1>
             <p className="truncate text-xs text-muted-foreground">
               回测 & 分析
