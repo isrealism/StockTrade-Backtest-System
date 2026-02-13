@@ -147,6 +147,25 @@ export async function getRankings(metric = "score") {
   }>(`/api/rankings?metric=${metric}`);
 }
 
+export interface KLineDataPoint {
+  time: string;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  volume?: number;
+}
+
+export async function getKLineData(code: string, start?: string, end?: string) {
+  const params = new URLSearchParams();
+  if (start) params.set("start", start);
+  if (end) params.set("end", end);
+  const qs = params.toString();
+  return fetchAPI<{ code: string; data: KLineDataPoint[] }>(
+    `/api/kline/${encodeURIComponent(code)}${qs ? `?${qs}` : ""}`
+  );
+}
+
 export interface BenchmarkSeries {
   date: string;
   nav: number;

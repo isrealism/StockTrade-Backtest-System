@@ -497,6 +497,47 @@ def get_rankings(metric: str = "score"):
     return {"items": items}
 
 
+@app.get("/api/kline/{code}")
+def get_kline(code: str, start: str = "", end: str = ""):
+    """Return OHLCV K-line data for a stock code."""
+    csv_path = DATA_DIR / f"{code}.csv"
+    if not csv_path.exists():
+        raise HTTPException(status_code=404, detail=f"Stock data not found for {code}")
+    try:
+        df = pd.read_csv(csv_path)
+        if "date" not in df.columns:
+            raise HTTPException(status_code=400, detail="Invalid data format")
+        df["date"] = pd.to_datetime(df["date"])
+        df = df.sort_values("date")
+        if start:
+            df = df[df["date"] >= pd.to_datetime(start)]
+        if end:
+            df = df[df["date"] <= pd.to_datetime(end)]
+
+        required_cols = ["date", "open", "high", "low", "close"]
+        for col in required_cols:
+            if col not in df.columns:
+                raise HTTPException(status_code=400, detail=f"Missing column: {col}")
+
+        records = []
+        for _, row in df.iterrows():
+            rec: Dict[str, Any] = {
+                "time": row["date"].strftime("%Y-%m-%d"),
+                "open": float(row["open"]),
+                "high": float(row["high"]),
+                "low": float(row["low"]),
+                "close": float(row["close"]),
+            }
+            if "volume" in df.columns:
+                rec["volume"] = float(row["volume"])
+            records.append(rec)
+        return {"code": code, "data": records}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @app.get("/api/benchmark")
 def get_benchmark(name: str, start: str, end: str):
     bench_dir = DATA_DIR / "index"

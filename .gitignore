@@ -1,7 +1,6 @@
 # Data
-data/raw/
-data/processed/
-results/
+data/
+index_data/
 
 
 # Python
@@ -22,4 +21,4 @@ __pycache__/
 # VSCode
 .vscode/
 node_modules
-node_modules/ .next/ .DS_Store .env.local pycache/ venv/
+.next/ 
