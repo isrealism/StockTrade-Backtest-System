@@ -58,31 +58,27 @@ class KDJOverboughtExitStrategy(SellStrategy):
         hist_data: pd.DataFrame
     ) -> Tuple[bool, str]:
         """Check if KDJ overbought."""
-        # Calculate KDJ
-        kdj = self._compute_kdj(hist_data )
+        # ── 优先使用数据库预计算列 ──────────────────────────────────────
+        if 'kdj_j' in hist_data.columns and not hist_data['kdj_j'].isna().all():
+            j_series = hist_data['kdj_j']
+        else:
+            # 回退：实时计算
+            kdj = self._compute_kdj(hist_data)
+            if kdj is None or len(kdj) == 0:
+                return False, ""
+            j_series = kdj['J']
+        # ────────────────────────────────────────────────────────────────
 
-        if kdj is None or len(kdj) == 0:
-            return False, ""
-
-        # Merge with hist_data
-        hist = hist_data.copy()
-        hist = pd.concat([hist, kdj], axis=1)
-
-        if 'J' not in hist.columns or hist['J'].isna().all():
-            return False, ""
-
-        current_j = hist['J'].iloc[-1]
-
+        current_j = j_series.iloc[-1]
         if pd.isna(current_j):
             return False, ""
 
         # Determine threshold
         if self.use_percentile:
-            # Get data since entry for percentile calculation
-            entry_idx = hist[hist['date'] == position.entry_date].index
+            entry_idx = hist_data[hist_data['date'] == position.entry_date].index
             if len(entry_idx) > 0:
-                data_since_entry = hist.loc[entry_idx[0]:]
-                threshold = data_since_entry['J'].quantile(self.percentile / 100.0)
+                data_since_entry = j_series.loc[entry_idx[0]:]
+                threshold = data_since_entry.quantile(self.percentile / 100.0)
             else:
                 threshold = self.j_threshold
         else:
@@ -90,9 +86,8 @@ class KDJOverboughtExitStrategy(SellStrategy):
 
         # Check if overbought
         if current_j > threshold:
-            # Check turndown if required
-            if self.wait_for_turndown and len(hist) >= 2:
-                prev_j = hist['J'].iloc[-2]
+            if self.wait_for_turndown and len(j_series) >= 2:
+                prev_j = j_series.iloc[-2]
                 if pd.isna(prev_j) or current_j >= prev_j:
                     return False, ""  # Not turning down yet
 
@@ -175,8 +170,13 @@ class BBIReversalExitStrategy(SellStrategy):
         hist_data: pd.DataFrame
     ) -> Tuple[bool, str]:
         """Check if BBI in downtrend."""
-        # Calculate BBI
-        bbi = self._compute_bbi(hist_data)
+        # ── 优先使用数据库预计算列 ──────────────────────────────────────
+        if 'bbi' in hist_data.columns and not hist_data['bbi'].isna().all():
+            bbi = hist_data['bbi']
+        else:
+            # 回退：实时计算
+            bbi = self._compute_bbi(hist_data)
+        # ────────────────────────────────────────────────────────────────
 
         if bbi is None or len(bbi) < self.consecutive_declines + 1:
             return False, ""
@@ -233,8 +233,16 @@ class ZXLinesCrossDownExitStrategy(SellStrategy):
         hist_data: pd.DataFrame
     ) -> Tuple[bool, str]:
         """Check if ZX lines cross down."""
-        # Calculate ZX lines
-        zxdq, zxdkx = self._compute_zx_lines(hist_data)
+        # ── 优先使用数据库预计算列 ──────────────────────────────────────
+        if ('zxdq' in hist_data.columns and 'zxdkx' in hist_data.columns
+                and not hist_data['zxdq'].isna().all()
+                and not hist_data['zxdkx'].isna().all()):
+            zxdq = hist_data['zxdq']
+            zxdkx = hist_data['zxdkx']
+        else:
+            # 回退：实时计算
+            zxdq, zxdkx = self._compute_zx_lines(hist_data)
+        # ────────────────────────────────────────────────────────────────
 
         if zxdq is None or zxdkx is None:
             return False, ""
@@ -315,11 +323,20 @@ class MADeathCrossExitStrategy(SellStrategy):
         if len(hist_data) < max(self.fast_period, self.slow_period) + 1:
             return False, ""
 
-        close = hist_data['close']
-
-        # Calculate MAs
-        fast_ma = close.rolling(window=self.fast_period, min_periods=1).mean()
-        slow_ma = close.rolling(window=self.slow_period, min_periods=1).mean()
+        # ── 优先使用数据库预计算列 ──────────────────────────────────────
+        fast_col = f'ma{self.fast_period}'
+        slow_col = f'ma{self.slow_period}'
+        if (fast_col in hist_data.columns and slow_col in hist_data.columns
+                and not hist_data[fast_col].isna().all()
+                and not hist_data[slow_col].isna().all()):
+            fast_ma = hist_data[fast_col]
+            slow_ma = hist_data[slow_col]
+        else:
+            # 回退：实时计算
+            close = hist_data['close']
+            fast_ma = close.rolling(window=self.fast_period, min_periods=1).mean()
+            slow_ma = close.rolling(window=self.slow_period, min_periods=1).mean()
+        # ────────────────────────────────────────────────────────────────
 
         if len(fast_ma) < 2 or len(slow_ma) < 2:
             return False, ""

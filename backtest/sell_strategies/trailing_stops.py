@@ -47,8 +47,15 @@ class ATRTrailingStopStrategy(SellStrategy):
         hist_data: pd.DataFrame
     ) -> Tuple[bool, str]:
         """Check if current price hit ATR trailing stop."""
-        # Calculate ATR
-        atr = self._calculate_atr(hist_data, self.atr_period)
+        # ── 优先使用数据库预计算列 ──────────────────────────────────────
+        atr_col = f'atr{self.atr_period}' if f'atr{self.atr_period}' in hist_data.columns else 'atr'
+        if atr_col in hist_data.columns and not hist_data[atr_col].isna().all():
+            atr_val = hist_data[atr_col].iloc[-1]
+            atr = float(atr_val) if not pd.isna(atr_val) else None
+        else:
+            # 回退：实时计算
+            atr = self._calculate_atr(hist_data, self.atr_period)
+        # ────────────────────────────────────────────────────────────────
 
         if atr is None or atr <= 0:
             return False, ""
@@ -143,8 +150,15 @@ class ChandelierStopStrategy(SellStrategy):
         hist_data: pd.DataFrame
     ) -> Tuple[bool, str]:
         """Check if current price hit Chandelier stop."""
-        # Calculate ATR
-        atr = self._calculate_atr(hist_data, self.atr_period)
+        # ── 优先使用数据库预计算列 ──────────────────────────────────────
+        atr_col = f'atr{self.atr_period}' if f'atr{self.atr_period}' in hist_data.columns else 'atr'
+        if atr_col in hist_data.columns and not hist_data[atr_col].isna().all():
+            atr_val = hist_data[atr_col].iloc[-1]
+            atr = float(atr_val) if not pd.isna(atr_val) else None
+        else:
+            # 回退：实时计算
+            atr = self._calculate_atr(hist_data, self.atr_period)
+        # ────────────────────────────────────────────────────────────────
 
         if atr is None or atr <= 0:
             return False, ""

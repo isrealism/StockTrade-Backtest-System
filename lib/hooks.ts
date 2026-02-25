@@ -30,14 +30,14 @@ export function useBacktests() {
 }
 
 export function useBacktest(id: string | null) {
-  const { data, error, isLoading } = useSWR(id ? `backtest-${id}` : null, () =>
+  const { data, error, isLoading, mutate } = useSWR(id ? `backtest-${id}` : null, () =>
     id ? getBacktest(id) : null,
     {
       refreshInterval: (data) =>
         data?.status === "RUNNING" || data?.status === "PENDING" ? 1500 : 0,
     }
   );
-  return { data, error, isLoading };
+  return { data, error, isLoading, mutate };
 }
 
 export function useRankings(metric: string) {

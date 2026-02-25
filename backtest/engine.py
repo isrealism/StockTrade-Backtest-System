@@ -46,7 +46,9 @@ class BacktestEngine:
         stamp_tax_rate: float = 0.001,
         slippage_rate: float = 0.001,
         buy_config: Optional[Dict[str, Any]] = None,
-        log_callback: Optional[Any] = None
+        log_callback: Optional[Any] = None,
+        use_indicator_db: bool = False,  # 新增：是否使用指标数据库
+        indicator_db_path: str = "./data/indicators.db"  # 新增：数据库路径
     ):
         """
         Initialize backtesting engine.
@@ -63,6 +65,8 @@ class BacktestEngine:
             commission_rate: Commission rate
             stamp_tax_rate: Stamp tax rate
             slippage_rate: Slippage rate
+            use_indicator_db: Whether to use pre-computed indicator database
+            indicator_db_path: Path to indicator database
         """
         self.data_dir = Path(data_dir)
         self.buy_config_path = buy_config_path
@@ -70,6 +74,15 @@ class BacktestEngine:
         self.sell_strategy_config = sell_strategy_config
         self.start_date = pd.to_datetime(start_date)
         self.end_date = pd.to_datetime(end_date)
+
+        # Indicator database (新增)
+        self.use_indicator_db = use_indicator_db
+        self.indicator_db_path = indicator_db_path
+        self.indicator_store = None
+
+        if use_indicator_db:
+            from .indicator_store import IndicatorStore
+            self.indicator_store = IndicatorStore(indicator_db_path)
 
         # Initialize components
         execution_engine = ExecutionEngine(
@@ -124,6 +137,16 @@ class BacktestEngine:
         self.logs: List[str] = []
         self.log_callback = log_callback
 
+        # Data preparation cache (新增：数据准备缓存)
+        self.data_cache: Dict[str, pd.DataFrame] = {}  # {code: df_up_to_current_date}
+        self.cache_date: Optional[datetime] = None     # 缓存对应的日期
+
+        # Log indicator database mode
+        if self.use_indicator_db:
+            self.log(f"Using indicator database: {self.indicator_db_path}")
+        else:
+            self.log("Using CSV data with real-time indicator computation")
+
     def _ensure_project_root_on_path(self):
         """Ensure project root is on sys.path for Selector imports."""
         import sys
@@ -134,9 +157,42 @@ class BacktestEngine:
         if str(root) not in sys.path:
             sys.path.insert(0, str(root))
 
+    def _get_data_up_to_date(self, date: datetime) -> Dict[str, pd.DataFrame]:
+        """
+        获取截至指定日期的数据（缓存机制）
+
+        核心优化：
+        - 缓存已过滤的 DataFrame 视图，避免重复过滤
+        - 相同日期直接返回缓存
+        - 新日期直接重新切片（由于 market_data 已预加载，切片很快）
+
+        关键改进：去除 .copy()，使用视图而非副本
+
+        Args:
+            date: 目标日期
+
+        Returns:
+            Dict[股票代码, DataFrame截至date的数据]
+        """
+        # 如果是同一天，直接返回缓存（最常见的情况）
+        if date == self.cache_date and self.data_cache:
+            return self.data_cache
+
+        # 需要更新缓存
+        self.data_cache = {}
+        for code, df in self.market_data.items():
+            # 关键优化：去除 .copy()，直接返回视图
+            # 选股器不应该修改数据，所以视图是安全的
+            df_filtered = df[df['date'] <= date]
+            if len(df_filtered) > 0:
+                self.data_cache[code] = df_filtered
+
+        self.cache_date = date
+        return self.data_cache
+
     def load_data(self, stock_codes: Optional[List[str]] = None, lookback_days: int = 200):
         """
-        Load historical data from CSV files.
+        Load historical data from CSV files or indicator database.
 
         Args:
             stock_codes: List of stock codes (e.g., ['000001', '000002'])
@@ -144,7 +200,75 @@ class BacktestEngine:
             lookback_days: Number of calendar days before start_date to load for indicator calculations
                           Default 200 days ensures ~140 trading days for MA120, BBI, etc.
         """
-        self.log("Loading market data...")
+        if self.use_indicator_db and self.indicator_store:
+            self._load_data_from_db(stock_codes, lookback_days)
+        else:
+            self._load_data_from_csv(stock_codes, lookback_days)
+
+    def _load_data_from_db(self, stock_codes: Optional[List[str]], lookback_days: int):
+        """从指标数据库加载数据（新模式）"""
+        self.log("Loading data from indicator database...")
+
+        # Calculate data load start date
+        data_start_date = self.start_date - timedelta(days=lookback_days)
+        self.log(f"Loading data from {data_start_date.date()} (backtest starts {self.start_date.date()})")
+
+        # Get stock codes
+        if stock_codes is None:
+            # Query all stocks from database
+            codes = self.indicator_store.get_all_codes()
+        else:
+            codes = stock_codes
+
+        loaded_count = 0
+        for code in codes:
+            try:
+                # Load indicators from database
+                df = self.indicator_store.get_indicators(
+                    code=code,
+                    start_date=data_start_date.strftime('%Y-%m-%d'),
+                    end_date=self.end_date.strftime('%Y-%m-%d')
+                )
+
+                if df.empty:
+                    continue
+
+                # Ensure date is datetime
+                df['date'] = pd.to_datetime(df['date'])
+                df = df.sort_values('date').reset_index(drop=True)
+
+                self.market_data[code] = df
+                loaded_count += 1
+
+            except Exception as e:
+                self.log(f"Error loading {code} from DB: {e}")
+
+        self.log(f"Loaded {loaded_count} stocks from indicator database")
+
+        # Build trading dates
+        all_dates = set()
+        for df in self.market_data.values():
+            backtest_dates = df[(df['date'] >= self.start_date) & (df['date'] <= self.end_date)]['date'].tolist()
+            all_dates.update(backtest_dates)
+
+        self.trading_dates = sorted(list(all_dates))
+
+        # Validate trading dates
+        if len(self.trading_dates) == 0:
+            raise ValueError(
+                f"No trading dates found in database. "
+                f"Check if database contains data for the backtest period "
+                f"({self.start_date.date()} to {self.end_date.date()})"
+            )
+
+        self.log(f"Trading dates: {len(self.trading_dates)} days from {self.trading_dates[0].date()} to {self.trading_dates[-1].date()}")
+
+        # Validate data quality
+        self.validate_data_quality()
+
+    def _load_data_from_csv(self, stock_codes: Optional[List[str]], lookback_days: int):
+        """从 CSV 文件加载数据（原有逻辑）"""
+        self.log("Loading market data from CSV files...")
 
         # Calculate data load start date (before backtest start for indicator calculations)
         data_start_date = self.start_date - timedelta(days=lookback_days)
@@ -354,7 +478,15 @@ class BacktestEngine:
                 self.log(f"Warning: {class_name} not found in Selector.py")
                 continue
 
-            selector_class = getattr(Selector, class_name)      # 通过类名字符串从 Selector 模块中获取对应的类对象
+            selector_class = getattr(Selector, class_name)
+
+            # 如果使用指标数据库，尝试传入 indicator_store（只在选股器支持时）
+            if self.use_indicator_db and self.indicator_store:
+                import inspect
+                sig = inspect.signature(selector_class.__init__)
+                if 'indicator_store' in sig.parameters:
+                    params['indicator_store'] = self.indicator_store
+
             selector = selector_class(**params)               # 使用配置中的参数实例化选股器类
 
             self.buy_selectors.append({
@@ -392,74 +524,78 @@ class BacktestEngine:
         self.log(f"Loaded sell strategy: {strategy_name}")
  
 
-    def get_buy_signals(self, date: datetime) -> List[BuySignal]:
+    def get_buy_signals(self, date: datetime, cancel_check=None):
         """
-        Get buy signals from all selectors for given date.
+        获取买入信号。
 
-        Applies combination logic based on self.combination_mode.
-
-        Args:
-            date: Current date
-
-        Returns:
-            List of buy signals
+        核心逻辑：
+        - 无论是否使用指标数据库，都直接调用 selector.select()。
+        - 当 use_indicator_db=True 时，self.market_data 里的 DataFrame 已经包含
+          所有预计算指标列（kdj_j、bbi、ma60、dif、zxdq 等），选股器内部的
+          _passes_filters_with_db() 会直接读取这些列，无需任何实时计算。
+        - 当 use_indicator_db=False 时，DataFrame 只含 OHLCV，选股器走
+          _passes_filters_legacy()，行为与原来完全一致。
+        - 两条路径共用同一套 selector.select() 接口，代码统一、无冗余。
         """
-        # Prepare data for selectors (only up to current date)
-        data_for_selectors = {}
-        for code, df in self.market_data.items():
-            df_up_to_date = df[df['date'] <= date].copy()
-            if len(df_up_to_date) > 0:
-                data_for_selectors[code] = df_up_to_date
 
-        self.log(f"  Data prepared: {len(data_for_selectors)} stocks available")
+        import time
 
-        # Collect signals from each selector separately
+        self.log(f"\n{'='*80}")
+        self.log(f"GETTING BUY SIGNALS FOR {date.date()}")
+        self.log(f"{'='*80}")
+
+        # 获取截至当前日期的数据（含全部指标列，来自 DB 或纯 OHLCV）
+        t0 = time.perf_counter()
+        data_up_to_date = self._get_data_up_to_date(date)
+        self.log(f"  Data slice ready: {len(data_up_to_date)} stocks in {time.perf_counter()-t0:.3f}s")
+
+        # 执行每个选股器
         signals_by_selector: Dict[str, List[BuySignal]] = {}
 
         for selector_info in self.buy_selectors:
+            if cancel_check and cancel_check():
+                break
+
+            alias = selector_info['alias']
+            class_name = selector_info['class']
+            selector = selector_info['instance']
+
             try:
-                selected_codes = selector_info['instance'].select(
-                    date,
-                    data_for_selectors
-                )
+                self.log(f"  Running {alias}...")
+                t1 = time.perf_counter()
 
-                self.log(f"  {selector_info['alias']}: {len(selected_codes)} signals")
+                # selector.select() 返回符合条件的股票代码列表
+                picked_codes: List[str] = selector.select(date, data_up_to_date)
 
-                # Convert to BuySignals with scores
-                signals = []
-                for code in selected_codes:
+                elapsed = time.perf_counter() - t1
+                self.log(f"    → {len(picked_codes)} picks in {elapsed:.3f}s")
+
+                # 将代码列表转换为 BuySignal 列表（附带评分）
+                signals: List[BuySignal] = []
+                for code in picked_codes:
                     score, indicator_data = self._compute_signal_score(
-                        code,
-                        data_for_selectors.get(code)
+                        code, date,
+                        indicators=data_up_to_date[code].iloc[-1] if code in data_up_to_date else None
                     )
                     signal = BuySignal(
                         code=code,
-                        date=date,
-                        strategy_name=selector_info['class'],
-                        strategy_alias=selector_info['alias'],
                         score=score,
-                        signal_data=indicator_data
+                        strategy_name=alias,
+                        indicators=indicator_data
                     )
                     signals.append(signal)
 
-                signals_by_selector[selector_info['class']] = signals
+                signals_by_selector[class_name] = signals
 
             except Exception as e:
                 import traceback
-                self.log(f"  ERROR in {selector_info['alias']}: {e}")
-                self.log(f"  Traceback: {traceback.format_exc()}")
-                signals_by_selector[selector_info['class']] = []
+                self.log(f"  ERROR in {alias}: {e}\n{traceback.format_exc()}")
+                signals_by_selector[class_name] = []
 
-        # Apply combination logic
-        final_signals = self._apply_combination_logic(
-            signals_by_selector,
-            date
-        )
-
-        # Sort by score descending
+        final_signals = self._apply_combination_logic(signals_by_selector, date)
         final_signals.sort(key=lambda s: s.score, reverse=True)
 
-        self.log(f"  Total signals after {self.combination_mode} logic: {len(final_signals)}")
+        self.log(f"  Total signals after combination: {len(final_signals)}")
         return final_signals
 
     def _apply_combination_logic(
@@ -787,7 +923,7 @@ class BacktestEngine:
         else:
             raise ValueError(f"Unknown confirm_logic: {self.confirm_logic}")
 
-    def check_sell_signals(self, date: datetime) -> List[tuple[str, str]]:
+    def check_sell_signals(self, date: datetime, cancel_check: Optional[Any] = None) -> List[tuple[str, str]]:
         """
         Check sell conditions for all positions.
 
@@ -795,19 +931,29 @@ class BacktestEngine:
 
         Args:
             date: Current date
+            cancel_check: Optional function to check if backtest should be cancelled
 
         Returns:
             List of (code, exit_reason) tuples
         """
         sell_signals = []
 
-        for code, position in list(self.portfolio.positions.items()):       # 遍历当前持仓中的每只股票
-            # Get historical data up to current date
-            if code not in self.market_data:        # 如果当前持仓股票在市场数据中不存在，跳过
-                continue
+        # Ensure data cache is up to date for the current date
+        self._get_data_up_to_date(date)
 
-            df = self.market_data[code]     # 获取该股票的历史数据
-            df_up_to_date = df[df['date'] <= date].copy()       # 仅使用截至当前日期的数据，防止未来数据泄露
+        for code, position in list(self.portfolio.positions.items()):       # 遍历当前持仓中的每只股票
+            # Check for cancellation before processing each position
+            if cancel_check and cancel_check():
+                break
+
+            # Get historical data up to current date (from cache)
+            df_up_to_date = self.data_cache.get(code)
+            if df_up_to_date is None:
+                # 缓存中没有（不应该发生，但作为后备）
+                if code not in self.market_data:
+                    continue
+                df = self.market_data[code]
+                df_up_to_date = df[df['date'] <= date].copy()
 
             if len(df_up_to_date) == 0:     # 如果截至当前日期没有数据，跳过
                 continue
@@ -825,7 +971,8 @@ class BacktestEngine:
                     position=position,
                     current_date=date,
                     current_data=current_data,
-                    hist_data=df_up_to_date
+                    hist_data=df_up_to_date,
+                    indicators=current_data if self.use_indicator_db else None
                 )
 
                 if should_sell:
@@ -876,9 +1023,12 @@ class BacktestEngine:
 
             current_price = current_market_data[signal.code]['close']
 
-            # Get historical data for position sizing
-            df = self.market_data[signal.code]
-            df_up_to_date = df[df['date'] <= date]
+            # Get historical data for position sizing (from cache)
+            df_up_to_date = self.data_cache.get(signal.code)
+            if df_up_to_date is None:
+                # 缓存中没有（不应该发生，但作为后备）
+                df = self.market_data[signal.code]
+                df_up_to_date = df[df['date'] <= date]
 
             # Attempt to generate order
             order = self.portfolio.generate_buy_order(
@@ -979,7 +1129,7 @@ class BacktestEngine:
             self.portfolio.update_positions(date, current_market_data)      # 更新持仓的最高价格和持有天数
 
             # 4. Check sell signals
-            sell_signals = self.check_sell_signals(date)    # 检查卖出信号
+            sell_signals = self.check_sell_signals(date, cancel_check=cancel_check)    # 检查卖出信号，传递 cancel_check
             for code, reason in sell_signals:       
                 # Get current price for logging
                 if code in current_market_data:
@@ -993,7 +1143,7 @@ class BacktestEngine:
                 self.portfolio.generate_sell_order(code, date, reason)
 
             # 5. Get buy signals
-            buy_signals = self.get_buy_signals(date)        # 获取买入信号
+            buy_signals = self.get_buy_signals(date, cancel_check=cancel_check)        # 获取买入信号，传递 cancel_check
 
             # 6. Generate buy orders for T+1 with fallback mechanism
             self._process_buy_signals_with_fallback(date, buy_signals, current_market_data)
@@ -1103,7 +1253,120 @@ class BacktestEngine:
             except Exception:
                 pass
 
-    def _compute_signal_score(self, code: str, df: Optional[pd.DataFrame]) -> tuple[float, Dict[str, Any]]:
+    def _compute_signal_score(
+        self, 
+        code: str, 
+        date: datetime,
+        indicators: Optional[pd.Series] = None  # ← 新增参数
+    ) -> tuple[float, Dict[str, Any]]:
+        """
+        计算买入信号评分（优化版）
+        
+        优化点：
+        1. 优先使用批量查询传入的indicators
+        2. 回退到数据库单独查询
+        3. 最后才实时计算
+        """
+        
+            # 优先使用传入的指标
+        if indicators is not None:
+        if indicators is not None and 'kdj_j' in indicators:
+            # Only use provided indicators if they contain required fields (e.g. from DB)
+            return self._compute_score_from_indicators(code, indicators)
+        
+        # 回退：从数据库查询
+        if self.use_indicator_db and self.indicator_store:
+            date_str = date.strftime('%Y-%m-%d')
+            try:
+                df = self.indicator_store.get_indicators(code, date_str, date_str)
+                if not df.empty:
+                    indicators = df.iloc[0]
+                    return self._compute_score_from_indicators(code, indicators)
+            except Exception:
+                pass
+        
+        # 最后回退：实时计算
+        return self._compute_score_legacy(code)
+
+
+    def _compute_score_from_indicators(
+            self,
+            code: str,
+            indicators: pd.Series
+        ) -> tuple[float, Dict[str, Any]]:
+            """从预计算指标计算评分"""
+            
+            try:
+                # 提取指标
+                kdj_j = float(indicators.get('kdj_j', np.nan))
+                volume = float(indicators.get('volume', 0))
+                close = float(indicators.get('close', 0))
+                
+                # volume_ratio
+                if 'volume_ratio' in indicators and not pd.isna(indicators['volume_ratio']):
+                    volume_ratio = float(indicators['volume_ratio'])
+                else:
+                    ma20_volume = float(indicators.get('ma20_volume', volume))
+                    volume_ratio = volume / ma20_volume if ma20_volume > 0 else 0.0
+                
+                # daily_return
+                if 'daily_return' in indicators and not pd.isna(indicators['daily_return']):
+                    daily_return = float(indicators['daily_return'])
+                else:
+                    daily_return = 0.0
+                
+                # bbi_slope
+                if 'bbi_slope_5d' in indicators and not pd.isna(indicators['bbi_slope_5d']):
+                    bbi_slope = float(indicators['bbi_slope_5d'])
+                else:
+                    bbi_slope = 0.0
+                
+            except (KeyError, ValueError, TypeError) as e:
+                return 0.0, {'code': code, 'reason': f'invalid_data: {e}'}
+            
+            # 验证
+            if np.isnan(kdj_j) or close == 0:
+                return 0.0, {'code': code, 'reason': 'invalid_indicators'}
+            
+            # 计算分数
+            kdj_score = max(0.0, min(100.0, 100.0 - kdj_j))
+            volume_score = max(0.0, min(100.0, (volume_ratio - 1.0) / 2.0 * 100.0))
+            
+            if daily_return <= 0:
+                momentum_score = 0.0
+            elif daily_return <= 0.02:
+                momentum_score = (daily_return / 0.02) * 100.0
+            elif daily_return <= 0.05:
+                momentum_score = 100.0 - ((daily_return - 0.02) / 0.03) * 50.0
+            else:
+                momentum_score = 50.0
+            momentum_score = max(0.0, min(100.0, momentum_score))
+            
+            bbi_score = max(0.0, min(100.0, (bbi_slope / 0.005) * 100.0)) if bbi_slope > 0 else 0.0
+            
+            composite = (
+                0.4 * kdj_score +
+                0.3 * volume_score +
+                0.2 * momentum_score +
+                0.1 * bbi_score
+            )
+            
+            indicator_data = {
+                'kdj_j': kdj_j,
+                'volume_ratio': volume_ratio,
+                'momentum_pct': daily_return,
+                'bbi_slope': bbi_slope,
+                'score_breakdown': {
+                    'kdj': kdj_score,
+                    'volume': volume_score,
+                    'momentum': momentum_score,
+                    'bbi': bbi_score
+                }
+            }
+            
+            return float(composite), indicator_data
+
+    def _compute_score_legacy(self, code: str, df: Optional[pd.DataFrame]) -> tuple[float, Dict[str, Any]]:
         """Compute composite score and indicator data for a buy signal."""
         if df is None or df.empty:
             return 0.0, {'code': code, 'reason': 'no_data'}
@@ -1174,4 +1437,4 @@ class BacktestEngine:
             }
         }
 
-        return float(composite), indicator_data
+        return float(composite), indicator_data 

@@ -184,28 +184,27 @@ class JobManager:
         cancel_event = threading.Event()
 
         def run_job():
-            db_execute(
-                "UPDATE backtests SET status=?, started_at=?, progress=? WHERE id=?",
-                ("RUNNING", _now_iso(), 0.0, job_id),
-            )
-
-            def log_callback(message: str) -> None:
-                db_execute(
-                    "INSERT INTO logs (backtest_id, ts, message) VALUES (?, ?, ?)",
-                    (job_id, _now_iso(), message),
-                )
-
-            def progress_callback(done: int, total: int, date: datetime) -> None:
-                progress = 0.0 if total == 0 else (done / total) * 100.0
-                db_execute(
-                    "UPDATE backtests SET progress=? WHERE id=?",
-                    (round(progress, 2), job_id),
-                )
-
-            def cancel_check() -> bool:
-                return cancel_event.is_set()
-
             try:
+                db_execute(
+                    "UPDATE backtests SET status=?, started_at=?, progress=? WHERE id=?",
+                    ("RUNNING", _now_iso(), 0.0, job_id),
+                )
+
+                def log_callback(message: str) -> None:
+                    db_execute(
+                        "INSERT INTO logs (backtest_id, ts, message) VALUES (?, ?, ?)",
+                        (job_id, _now_iso(), message),
+                    )
+
+                def progress_callback(done: int, total: int, date: datetime) -> None:
+                    progress = 0.0 if total == 0 else (done / total) * 100.0
+                    db_execute(
+                        "UPDATE backtests SET progress=? WHERE id=?",
+                        (round(progress, 2), job_id),
+                    )
+
+                def cancel_check() -> bool:
+                    return cancel_event.is_set()
                 buy_config = payload.get("buy_config")
                 if buy_config is None:
                     buy_config = load_buy_config_default()
@@ -316,10 +315,19 @@ class JobManager:
                         job_id,
                     ),
                 )
-            except Exception as exc:
+            except (KeyboardInterrupt, SystemExit) as exc:
+                # Handle forced termination (Ctrl+C, kill, etc.)
                 db_execute(
                     "UPDATE backtests SET status=?, error=?, finished_at=? WHERE id=?",
-                    ("FAILED", str(exc), _now_iso(), job_id),
+                    ("FAILED", f"Backtest terminated: {type(exc).__name__}", _now_iso(), job_id),
+                )
+                raise
+            except Exception as exc:
+                import traceback
+                error_msg = f"{str(exc)}\n{traceback.format_exc()}"
+                db_execute(
+                    "UPDATE backtests SET status=?, error=?, finished_at=? WHERE id=?",
+                    ("FAILED", error_msg, _now_iso(), job_id),
                 )
 
         thread = threading.Thread(target=run_job, daemon=True)

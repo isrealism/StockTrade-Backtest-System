@@ -24,13 +24,22 @@ interface TaskDetailProps {
 }
 
 export function TaskDetail({ backtestId }: TaskDetailProps) {
-  const { data, isLoading } = useBacktest(backtestId);
+  const { data, isLoading, mutate } = useBacktest(backtestId);
   const [cancelling, setCancelling] = useState(false);
 
   async function handleCancel() {
     setCancelling(true);
     try {
       await cancelBacktest(backtestId);
+      // Optimistically update the local state to show cancelling
+      if (data) {
+        mutate({
+          ...data,
+          status: "CANCELLED" as const,
+        }, false); // false = don't revalidate immediately
+      }
+    } catch (error) {
+      console.error("Failed to cancel backtest:", error);
     } finally {
       setCancelling(false);
     }
@@ -47,6 +56,7 @@ export function TaskDetail({ backtestId }: TaskDetailProps) {
   const isRunning = data.status === "RUNNING" || data.status === "PENDING";
   const isCompleted = data.status === "COMPLETED";
   const isFailed = data.status === "FAILED";
+  const isCancelled = data.status === "CANCELLED";
 
   return (
     <div className="space-y-4">
@@ -106,6 +116,17 @@ export function TaskDetail({ backtestId }: TaskDetailProps) {
           <CardContent className="py-4">
             <p className="text-sm text-[hsl(var(--loss))]">
               Error: {data.error}
+            </p>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Cancelled */}
+      {isCancelled && (
+        <Card className="border-muted bg-muted/20">
+          <CardContent className="py-4">
+            <p className="text-sm text-muted-foreground">
+              回测任务已取消
             </p>
           </CardContent>
         </Card>

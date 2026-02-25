@@ -160,6 +160,18 @@ def main():
         help='Slippage rate (default: 0.001 = 0.1%%)'
     )
 
+    # Indicator database (新增)
+    parser.add_argument(
+        '--use-indicator-db',
+        action='store_true',
+        help='Use pre-computed indicator database for faster backtesting'
+    )
+    parser.add_argument(
+        '--indicator-db-path',
+        default='./data/indicators.db',
+        help='Path to indicator database (default: ./data/indicators.db)'
+    )
+
     # Output
     parser.add_argument(
         '--save-results',
@@ -202,7 +214,9 @@ def main():
         position_sizing=args.position_sizing,
         commission_rate=args.commission,
         stamp_tax_rate=args.stamp_tax,
-        slippage_rate=args.slippage
+        slippage_rate=args.slippage,
+        use_indicator_db=args.use_indicator_db,  # 新增
+        indicator_db_path=args.indicator_db_path  # 新增
     )
 
     # Load data
