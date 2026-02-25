@@ -1,6 +1,10 @@
-# Data
+# Data & Logs
 data/
 index_data/
+logs/
+*.log
+*.csv
+*.db
 
 
 # Python
@@ -14,7 +18,14 @@ backtest/_pycache_/
 
 # Jupyter
 .ipynb_checkpoints/
+*.ipynb
 
+
+# Node.js
+node_modules/
+dist/
+.next/
+out/
 
 # OS
 .DS_Store
@@ -22,5 +33,6 @@ backtest/_pycache_/
 
 # VSCode
 .vscode/
-node_modules
-.next/ 
+
+# Typescript
+*.tsbuildinfo
