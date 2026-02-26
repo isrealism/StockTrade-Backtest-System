@@ -5,6 +5,7 @@ logs/
 *.log
 *.csv
 *.db
+*.duckdb
 
 
 # Python
@@ -27,12 +28,14 @@ dist/
 .next/
 out/
 
+
 # OS
 .DS_Store
 
 
 # VSCode
 .vscode/
+
 
 # Typescript
 *.tsbuildinfo
