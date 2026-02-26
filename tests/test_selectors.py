@@ -18,7 +18,7 @@ import pandas as pd
 
 # Add parent directory to path to import Selector module
 sys.path.insert(0, str(Path(__file__).parent.parent))
-import Selector
+import backtest.Selector as Selector
 
 
 def test_selector(selector_class, selector_name, params, data_dir, test_date):
@@ -97,7 +97,7 @@ def test_selector(selector_class, selector_name, params, data_dir, test_date):
 
 def main():
     """Test all selectors from configs.json."""
-    config_path = Path(__file__).parent.parent / "configs.json"
+    config_path = Path(__file__).parent.parent / "configs/buy_selectors.json"
 
     print("="*80)
     print("SELECTOR VALIDATION TEST")

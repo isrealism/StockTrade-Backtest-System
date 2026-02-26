@@ -70,9 +70,15 @@ class SelectorConfig(BaseModel):
 class SelectorCombinationConfig(BaseModel):
     """Configuration for selector combination logic."""
 
-    mode: Literal["OR", "AND", "TIME_WINDOW"] = Field(default="OR", description="Combination mode")
     time_window_days: int = Field(default=5, ge=1, le=30, description="Time window for TIME_WINDOW mode")
     required_selectors: List[str] = Field(default_factory=list, description="Required selectors for AND/TIME_WINDOW")
+
+    # Fields for SEQUENTIAL_CONFIRMATION mode
+    trigger_selectors: List[str] = Field(default_factory=list, description="Selectors that trigger the signal")
+    trigger_logic: Literal["OR", "AND"] = Field(default="OR", description="Logic for trigger selectors")
+    confirm_selectors: List[str] = Field(default_factory=list, description="Selectors that confirm the signal")
+    confirm_logic: Literal["OR", "AND"] = Field(default="OR", description="Logic for confirm selectors")
+    buy_timing: Literal["confirmation_day", "trigger_day"] = Field(default="confirmation_day", description="When to execute buy")
 
     @validator('required_selectors')
     def validate_required_selectors(cls, v, values):

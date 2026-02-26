@@ -37,6 +37,8 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from backtest.engine import BacktestEngine
 from backtest.performance import PerformanceAnalyzer
 
+# Define project root for robust path resolution
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 def load_sell_strategy_config(strategy_name: str) -> dict:
     """
@@ -49,6 +51,7 @@ def load_sell_strategy_config(strategy_name: str) -> dict:
         Strategy configuration dict
     """
     config_path = Path("./configs/sell_strategies.json")
+    config_path = PROJECT_ROOT / "configs/sell_strategies.json"
 
     if not config_path.exists():
         print(f"ERROR: {config_path} not found")
@@ -96,6 +99,8 @@ def main():
         '--data-dir',
         default='./data',
         help='Directory with historical K-line data (default: ./data)'
+        default=str(PROJECT_ROOT / 'data'),
+        help=f'Directory with historical K-line data (default: {PROJECT_ROOT}/data)'
     )
     parser.add_argument(
         '--start',
@@ -111,8 +116,10 @@ def main():
     # Strategy configuration
     parser.add_argument(
         '--buy-config',
-        default='./configs.json',
-        help='Buy strategies configuration file (default: ./configs.json)'
+        default='./configs/buy_selectors.json',
+        help='Buy strategies configuration file (default: ./configs/buy_selectors.json)'
+        default=str(PROJECT_ROOT / 'configs/buy_selectors.json'),
+        help=f'Buy strategies configuration file (default: {PROJECT_ROOT}/configs/buy_selectors.json)'
     )
     parser.add_argument(
         '--sell-strategy',
@@ -170,6 +177,8 @@ def main():
         '--indicator-db-path',
         default='./data/indicators.db',
         help='Path to indicator database (default: ./data/indicators.db)'
+        default=str(PROJECT_ROOT / 'data/indicators.db'),
+        help=f'Path to indicator database (default: {PROJECT_ROOT}/data/indicators.db)'
     )
 
     # Output

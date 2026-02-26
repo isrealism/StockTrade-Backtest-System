@@ -50,26 +50,26 @@ from dataclasses import dataclass
 import numpy as np
 import pandas as pd
 
-# 添加项目根目录到 sys.path
-sys.path.insert(0, str(Path(__file__).parent.parent))
-
-from Selector import (
+from utils.indicators import (
     compute_kdj,
     compute_bbi,
     compute_dif,
     compute_zx_lines,
     compute_rsv,
     compute_atr,
-    passes_day_constraints_today,
 )
+from utils.filters import passes_day_constraints_today
 
 
 # ========== 配置日志 ==========
+_LOG_DIR = Path(__file__).parent.parent / "logs"
+_LOG_DIR.mkdir(parents=True, exist_ok=True)
+
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.FileHandler('precompute.log'),
+        logging.FileHandler(_LOG_DIR / "precompute.log"),
         logging.StreamHandler(sys.stdout)
     ]
 )
@@ -154,8 +154,8 @@ def compute_indicators_for_stock_vectorized(code: str, df: pd.DataFrame) -> pd.D
     result_df['rsv_21'] = compute_rsv(df, n=21)
 
     # ========== 7. ATR 指标（真实波幅）==========
-    result_df['atr_14'] = compute_atr(df, n=14)
-    result_df['atr_22'] = compute_atr(df, n=22)
+    result_df['atr_14'] = compute_atr(df, period=14)
+    result_df['atr_22'] = compute_atr(df, period=22)
 
     # ========== 8. 布尔型派生指标（向量化优化）==========
     # 方法1：知行条件（完全向量化，正确处理 NaN）

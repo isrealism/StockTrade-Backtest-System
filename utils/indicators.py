@@ -102,52 +102,60 @@ def compute_rsv(df: pd.DataFrame, n: int) -> pd.Series:
     return pd.Series(rsv, index=df.index)
 
 
-def compute_dif(df: pd.DataFrame, short: int = 12, long: int = 26) -> pd.Series:
+def compute_dif(df: pd.DataFrame, fast: int = 12, slow: int = 26) -> pd.Series:
     """
     Calculate MACD DIF line.
 
     Args:
         df: DataFrame with 'close' column
-        short: Short EMA period (default: 12)
-        long: Long EMA period (default: 26)
+        fast: Fast EMA period (default: 12).
+              Maps to configs.json key: macd.fast
+        slow: Slow EMA period (default: 26).
+              Maps to configs.json key: macd.slow
 
     Returns:
         Series with DIF values
 
     Formula:
-        DIF = EMA(Close, short) - EMA(Close, long)
+        DIF = EMA(Close, fast) - EMA(Close, slow)
     """
-    ema_short = df["close"].ewm(span=short, adjust=False).mean()
-    ema_long = df["close"].ewm(span=long, adjust=False).mean()
-    return ema_short - ema_long
+    ema_fast = df["close"].ewm(span=fast, adjust=False).mean()
+    ema_slow = df["close"].ewm(span=slow, adjust=False).mean()
+    return ema_fast - ema_slow
 
 
-def compute_zx_lines(df: pd.DataFrame) -> Tuple[pd.Series, pd.Series]:
+def compute_zx_lines(
+    df: pd.DataFrame,
+    ema_span: int = 10,
+    ma_periods: Tuple[int, int, int, int] = (14, 28, 57, 114),
+) -> Tuple[pd.Series, pd.Series]:
     """
     Calculate ZX proprietary lines (知行线).
 
     Args:
         df: DataFrame with 'close' column
+        ema_span: Span for the double-EMA short-term line (default: 10).
+                  Maps to configs.json key: zx_lines.ema_span
+        ma_periods: Four MA periods for the long-term line (default: (14, 28, 57, 114)).
+                    Maps to configs.json key: zx_lines.ma_periods
 
     Returns:
         Tuple of (ZXDQ, ZXDKX)
-        - ZXDQ: Short-term line (double EMA)
-        - ZXDKX: Long-term line (average of 4 MAs)
-
-    Formula:
-        ZXDQ = EMA(EMA(Close, 10), 10)  # Short-term
-        ZXDKX = (MA14 + MA28 + MA57 + MA114) / 4  # Long-term
+        - ZXDQ: Short-term line  = EMA(EMA(Close, ema_span), ema_span)
+        - ZXDKX: Long-term line  = mean(MA(m1), MA(m2), MA(m3), MA(m4))
     """
-    # Short-term: double EMA
-    ema_10 = df["close"].ewm(span=10, adjust=False).mean()
-    zxdq = ema_10.ewm(span=10, adjust=False).mean()
+    close = df["close"].astype(float)
 
-    # Long-term: average of 4 MAs
-    ma14 = df["close"].rolling(14).mean()
-    ma28 = df["close"].rolling(28).mean()
-    ma57 = df["close"].rolling(57).mean()
-    ma114 = df["close"].rolling(114).mean()
-    zxdkx = (ma14 + ma28 + ma57 + ma114) / 4
+    # Short-term: double EMA
+    zxdq = close.ewm(span=ema_span, adjust=False).mean().ewm(span=ema_span, adjust=False).mean()
+
+    # Long-term: unweighted average of 4 MAs
+    m1, m2, m3, m4 = ma_periods
+    ma1 = close.rolling(window=m1, min_periods=m1).mean()
+    ma2 = close.rolling(window=m2, min_periods=m2).mean()
+    ma3 = close.rolling(window=m3, min_periods=m3).mean()
+    ma4 = close.rolling(window=m4, min_periods=m4).mean()
+    zxdkx = (ma1 + ma2 + ma3 + ma4) / 4.0
 
     return zxdq, zxdkx
 

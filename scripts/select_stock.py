@@ -11,13 +11,18 @@ from typing import Any, Dict, Iterable, List
 import pandas as pd
 
 # ---------- 日志 ----------
+(Path(__file__).parent.parent / "logs").mkdir(parents=True, exist_ok=True)
+
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(message)s",
     handlers=[
         logging.StreamHandler(sys.stdout),
         # 将日志写入文件
-        logging.FileHandler("select_results.log", encoding="utf-8"),
+        logging.FileHandler(
+            Path(__file__).parent.parent / "logs" / "select_results.log",
+            encoding="utf-8"
+        ),
     ],
 )
 logger = logging.getLogger("select")
@@ -53,7 +58,7 @@ def load_config(cfg_path: Path) -> List[Dict[str, Any]]:
         cfgs = [cfg_raw]
 
     if not cfgs:
-        logger.error("configs.json 未定义任何 Selector")
+        logger.error("配置文件未定义任何 Selector")
         sys.exit(1)
 
     return cfgs
@@ -80,7 +85,7 @@ def instantiate_selector(cfg: Dict[str, Any]):
 def main():
     p = argparse.ArgumentParser(description="Run selectors defined in configs.json")
     p.add_argument("--data-dir", default="./data", help="CSV 行情目录")
-    p.add_argument("--config", default="./configs.json", help="Selector 配置文件")
+    p.add_argument("--config", default="./configs/buy_selectors.json", help="Selector 配置文件")
     p.add_argument("--date", help="交易日 YYYY-MM-DD；缺省=数据最新日期")
     p.add_argument("--tickers", default="all", help="'all' 或逗号分隔股票代码列表")
     args = p.parse_args()

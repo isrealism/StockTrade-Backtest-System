@@ -19,7 +19,9 @@ from tqdm import tqdm
 warnings.filterwarnings("ignore")
 
 # --------------------------- 全局日志配置 --------------------------- #
-LOG_FILE = Path("fetch.log")
+_LOG_DIR = Path(__file__).parent.parent / "logs"
+_LOG_DIR.mkdir(parents=True, exist_ok=True)
+LOG_FILE = _LOG_DIR / "fetch.log"
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(filename)s:%(lineno)d %(message)s",
@@ -185,7 +187,7 @@ def main():
         help="排除板块，可多选：gem(创业板300/301) star(科创板688) bj(北交所.BJ/4/8)"
     )
     # 其它
-    parser.add_argument("--out", default="./data", help="输出目录")
+    parser.add_argument("--out", default="./data/kline", help="输出目录")
     parser.add_argument("--workers", type=int, default=6, help="并发线程数")
     args = parser.parse_args()
 

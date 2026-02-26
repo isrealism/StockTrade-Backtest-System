@@ -159,8 +159,7 @@ export function SelectorConfig({
               {[
                 { value: "OR", label: "任一满足" },
                 { value: "AND", label: "全部满足" },
-                { value: "TIME_WINDOW", label: "时间窗口" },
-                { value: "SEQUENTIAL_CONFIRMATION", label: "顺序确认" }
+                { value: "SEQUENTIAL_CONFIRMATION", label: "信号组合" }
               ].map((mode) => (
                 <button
                   key={mode.value}
@@ -180,37 +179,36 @@ export function SelectorConfig({
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
-        {/* Time Window Settings */}
-        {(combinationMode === "TIME_WINDOW" || combinationMode === "SEQUENTIAL_CONFIRMATION") && (
-          <div className="rounded-lg border border-primary/30 bg-primary/5 p-4 space-y-3">
-            <div className="flex items-center justify-between">
-              <Label className="text-sm font-medium">时间窗口配置</Label>
-              <Badge variant="outline" className="text-xs">
-                {combinationMode === "TIME_WINDOW" ? "窗口内多信号" : "先触发后确认"}
-              </Badge>
-            </div>
-            <div className="space-y-2">
-              <Label className="text-xs text-muted-foreground">
-                时间窗口 (天数)
-              </Label>
-              <Input
-                type="number"
-                min={1}
-                max={30}
-                value={timeWindowDays}
-                onChange={(e) => onTimeWindowDaysChange?.(Number(e.target.value))}
-                className="h-9"
-              />
-              <p className="text-xs text-muted-foreground">
-                信号在此天数内有效
-              </p>
-            </div>
-          </div>
-        )}
-
-        {/* Sequential Confirmation Settings */}
+        {/* Signal Combination Settings (Sequential Confirmation) */}
         {combinationMode === "SEQUENTIAL_CONFIRMATION" && (
           <div className="rounded-lg border border-accent/30 bg-accent/5 p-4 space-y-4">
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <Label className="text-sm font-medium">时间窗口配置</Label>
+                <Badge variant="outline" className="text-xs">
+                  先触发后确认
+                </Badge>
+              </div>
+              <div className="space-y-2">
+                <Label className="text-xs text-muted-foreground">
+                  时间窗口 (天数)
+                </Label>
+                <Input
+                  type="number"
+                  min={1}
+                  max={30}
+                  value={timeWindowDays}
+                  onChange={(e) => onTimeWindowDaysChange?.(Number(e.target.value))}
+                  className="h-9"
+                />
+                <p className="text-xs text-muted-foreground">
+                  信号在此天数内有效
+                </p>
+              </div>
+            </div>
+
+            <div className="h-px bg-border" />
+
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <Label className="text-sm font-medium">触发选股器</Label>
