@@ -31,7 +31,7 @@ from backtest.engine import BacktestEngine
 from backtest.performance import PerformanceAnalyzer
 
 DATA_DIR = ROOT / "data"
-CONFIGS_PATH = ROOT / "configs.json"
+CONFIGS_PATH = ROOT / "configs" / "buy_selectors.json"
 SELL_STRATEGIES_PATH = ROOT / "configs" / "sell_strategies.json"
 DB_PATH = ROOT / "backend" / "backtest_results.db"
 FRONTEND_DIR = ROOT / "frontend"
