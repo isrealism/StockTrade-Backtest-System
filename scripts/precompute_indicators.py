@@ -2,7 +2,7 @@
 """
 技术指标预计算脚本（改进版）
 
-读取原始 K 线数据，计算所有技术指标并存储到 SQLite 数据库。
+读取原始 K 线数据，计算所有技术指标并存储到 DuckDB 数据库。
 
 改进点：
 1. 向量化计算布尔指标（性能提升10-20倍）
@@ -16,7 +16,7 @@
 
 Usage:
     # 全量计算（首次运行）
-    python scripts/precompute_indicators.py --mode full --data-dir ./data --db ./data/indicators.db
+    python scripts/precompute_indicators.py --mode full --data-dir ./data --db ./data/indicators.duckdb
 
     # 增量更新（只计算新日期）
     python scripts/precompute_indicators.py --mode incremental --data-dir ./data --db ./data/indicators.db
@@ -35,7 +35,7 @@ Usage:
 """
 
 import argparse
-import sqlite3
+import threading
 import sys
 import time
 import json
@@ -74,6 +74,9 @@ logging.basicConfig(
     ]
 )
 logger = logging.getLogger(__name__)
+
+# DuckDB 同一时间只允许一个写连接；计算仍然并行，只有写入串行化
+_db_write_lock = threading.Lock()
 
 
 # ========== 数据类 ==========
@@ -274,60 +277,50 @@ def validate_dataframe(df: pd.DataFrame, code: str) -> Tuple[bool, List[str]]:
 
 # ========== 数据库操作（优化版）==========
 def write_to_database_upsert(
-    df: pd.DataFrame, 
+    df: pd.DataFrame,
     db_path: str,
-    use_transaction: bool = True
+    use_transaction: bool = True,   # 参数保留以兼容调用方，DuckDB 默认自动事务
 ) -> Tuple[bool, float]:
     """
-    使用 UPSERT 写入数据库（避免重复）
-    
-    Args:
-        df: 要写入的数据
-        db_path: 数据库路径
-        use_transaction: 是否使用事务
-        
+    使用 UPSERT 写入 DuckDB（避免重复）
+
+    线程安全：通过 _db_write_lock 串行化写入操作。
+    DuckDB 同一时间只允许一个写连接，加锁后多线程计算结果可以安全地依次写入。
+
     Returns:
         (success, write_time)
     """
+    import duckdb
+
     start_time = time.time()
-    
+
     try:
-        conn = sqlite3.connect(db_path)
-        cursor = conn.cursor()
-        
-        if use_transaction:
-            cursor.execute("BEGIN TRANSACTION")
-        
-        # 准备 UPSERT SQL
-        columns = df.columns.tolist()
-        placeholders = ','.join(['?'] * len(columns))
-        column_names = ','.join(columns)
-        
-        # 生成 UPDATE 子句
-        update_clause = ','.join([f"{col}=excluded.{col}" for col in columns if col not in ['code', 'date']])
-        
-        sql = f"""
-            INSERT INTO indicators ({column_names})
-            VALUES ({placeholders})
-            ON CONFLICT(code, date) DO UPDATE SET
-                {update_clause}
-        """
-        
-        # 批量插入
-        cursor.executemany(sql, df.values.tolist())
-        
-        if use_transaction:
-            conn.commit()
-        
-        conn.close()
-        
+        with _db_write_lock:
+            conn = duckdb.connect(db_path)
+
+            columns = df.columns.tolist()
+            col_names = ", ".join(columns)
+            # DuckDB 的 UPSERT 语法与现代 SQLite 相同
+            update_clause = ", ".join(
+                [f"{c} = excluded.{c}" for c in columns if c not in ("code", "date")]
+            )
+
+            # DuckDB 支持直接从 DataFrame 注册后插入，比逐行 executemany 快很多
+            conn.register("_df_insert", df)
+            conn.execute(f"""
+                INSERT INTO indicators ({col_names})
+                SELECT {col_names} FROM _df_insert
+                ON CONFLICT (code, date) DO UPDATE SET
+                    {update_clause}
+            """)
+            conn.unregister("_df_insert")
+            conn.close()
+
         write_time = time.time() - start_time
         return True, write_time
-        
+
     except Exception as e:
         logger.error(f"Database write failed: {e}")
-        if use_transaction and conn:
-            conn.rollback()
         return False, 0.0
 
 
@@ -335,33 +328,33 @@ def update_metadata(
     code: str,
     df: pd.DataFrame,
     db_path: str,
-    data_quality_score: float = 1.0
+    data_quality_score: float = 1.0,
 ) -> bool:
-    """更新元数据表"""
+    """更新元数据表（DuckDB 版，写入操作使用 _db_write_lock）"""
+    import duckdb
+
     try:
-        conn = sqlite3.connect(db_path)
-        cursor = conn.cursor()
-        
-        first_date = df['date'].min()
-        last_date = df['date'].max()
-        row_count = len(df)
+        first_date = str(df["date"].min())
+        last_date  = str(df["date"].max())
+        row_count  = len(df)
         updated_at = datetime.now(timezone.utc).isoformat()
-        
-        cursor.execute("""
-            INSERT INTO metadata (code, first_date, last_date, last_updated, row_count, data_quality_score)
-            VALUES (?, ?, ?, ?, ?, ?)
-            ON CONFLICT(code) DO UPDATE SET
-                first_date=excluded.first_date,
-                last_date=excluded.last_date,
-                last_updated=excluded.last_updated,
-                row_count=excluded.row_count,
-                data_quality_score=excluded.data_quality_score
-        """, (code, first_date, last_date, updated_at, row_count, data_quality_score))
-        
-        conn.commit()
-        conn.close()
+
+        with _db_write_lock:
+            conn = duckdb.connect(db_path)
+            conn.execute("""
+                INSERT INTO metadata (code, first_date, last_date, last_updated, row_count, data_quality_score)
+                VALUES (?, ?, ?, ?, ?, ?)
+                ON CONFLICT (code) DO UPDATE SET
+                    first_date          = excluded.first_date,
+                    last_date           = excluded.last_date,
+                    last_updated        = excluded.last_updated,
+                    row_count           = excluded.row_count,
+                    data_quality_score  = excluded.data_quality_score
+            """, [code, first_date, last_date, updated_at, row_count, data_quality_score])
+            conn.close()
+
         return True
-        
+
     except Exception as e:
         logger.error(f"Metadata update failed for {code}: {e}")
         return False
@@ -423,14 +416,13 @@ def process_single_stock(
 
         # ===== 4. 增量模式处理 =====
         if mode == 'incremental':
-            conn = sqlite3.connect(db_path)
-            cursor = conn.cursor()
-            cursor.execute(
-                "SELECT MAX(date) FROM indicators WHERE code = ?",
-                (code,)
-            )
-            last_date_result = cursor.fetchone()[0]
-            conn.close()
+            import duckdb as _duckdb
+            # 读取操作：开一个独立连接（read_only 不受写锁影响）
+            _conn = _duckdb.connect(db_path, read_only=True)
+            last_date_result = _conn.execute(
+                "SELECT MAX(date) FROM indicators WHERE code = ?", [code]
+            ).fetchone()[0]
+            _conn.close()
 
             if last_date_result:
                 last_date = pd.to_datetime(last_date_result)
@@ -537,7 +529,7 @@ def main():
     parser.add_argument(
         "--db",
         type=str,
-        default="./data/indicators.db",
+        default="./data/indicators.duckdb",
         help="Database file path (default: ./data/indicators.db)"
     )
     parser.add_argument(
@@ -589,7 +581,7 @@ def main():
     # 检查数据库文件
     if not Path(db_path).exists():
         logger.error(f"Database not found: {db_path}")
-        logger.info(f"Please run: python scripts/init_indicator_db_improved.py --db {db_path}")
+        logger.info(f"Please run: python scripts/init_indicator_db.py --db {db_path}")
         sys.exit(1)
 
     # 获取股票代码列表
@@ -616,12 +608,11 @@ def main():
         else:
             logger.warning("Force mode: Deleting all existing data...")
 
-        conn = sqlite3.connect(db_path)
-        cursor = conn.cursor()
-        cursor.execute("DELETE FROM indicators")
-        cursor.execute("DELETE FROM metadata")
-        conn.commit()
-        conn.close()
+        import duckdb as _duckdb
+        _conn = _duckdb.connect(db_path)
+        _conn.execute("DELETE FROM indicators")
+        _conn.execute("DELETE FROM metadata")
+        _conn.close()
         logger.info("✓ Cleared existing data\n")
 
     # 并行处理股票
@@ -684,13 +675,11 @@ def main():
     logger.info(f"{'='*60}\n")
 
     # 验证数据库
-    conn = sqlite3.connect(db_path)
-    cursor = conn.cursor()
-    cursor.execute("SELECT COUNT(DISTINCT code) FROM indicators")
-    unique_codes = cursor.fetchone()[0]
-    cursor.execute("SELECT COUNT(*) FROM indicators")
-    total_db_rows = cursor.fetchone()[0]
-    conn.close()
+    import duckdb as _duckdb
+    _conn = _duckdb.connect(db_path, read_only=True)
+    unique_codes  = _conn.execute("SELECT COUNT(DISTINCT code) FROM indicators").fetchone()[0]
+    total_db_rows = _conn.execute("SELECT COUNT(*) FROM indicators").fetchone()[0]
+    _conn.close()
 
     logger.info(f"📦 Database status:")
     logger.info(f"   Unique stocks: {unique_codes}")

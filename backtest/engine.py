@@ -220,30 +220,28 @@ class BacktestEngine:
         else:
             codes = stock_codes
 
+        # 优化：一次性批量读取所有代码的数据，避免对 SQLite 的 N 次往返查询
         loaded_count = 0
-        for code in codes:
-            try:
-                # Load indicators from database
-                df = self.indicator_store.get_indicators(
-                    code=code,
-                    start_date=data_start_date.strftime('%Y-%m-%d'),
-                    end_date=self.end_date.strftime('%Y-%m-%d')
-                )
+        try:
+            df_all = self.indicator_store.get_indicators_for_codes(
+                codes,
+                start_date=data_start_date.strftime('%Y-%m-%d'),
+                end_date=self.end_date.strftime('%Y-%m-%d'),
+            )
 
-                if df.empty:
-                    continue
+            if df_all.empty:
+                self.log("No indicator rows returned for requested codes/date range")
+            else:
+                # 按 code 分组并分配到 market_data
+                for code, group in df_all.groupby('code'):
+                    g = group.sort_values('date').reset_index(drop=True)
+                    self.market_data[code] = g
+                    loaded_count += 1
 
-                # Ensure date is datetime
-                df['date'] = pd.to_datetime(df['date'])
-                df = df.sort_values('date').reset_index(drop=True)
+            self.log(f"Loaded {loaded_count} stocks from indicator database")
 
-                self.market_data[code] = df
-                loaded_count += 1
-
-            except Exception as e:
-                self.log(f"Error loading {code} from DB: {e}")
-
-        self.log(f"Loaded {loaded_count} stocks from indicator database")
+        except Exception as e:
+            self.log(f"Error loading indicators in bulk from DB: {e}")
 
         # Build trading dates
         all_dates = set()
@@ -461,7 +459,7 @@ class BacktestEngine:
         # Import Selector module
         import sys      # 导入 sys 模块以操作模块搜索路径
         self._ensure_project_root_on_path()
-        import Selector
+        import backtest.Selector as Selector
 
         for selector_config in config.get('selectors', []):     # 遍历配置文件中的每个选股器配置
             if not selector_config.get('activate', False):      # 检查配置中的 'activate' 字段是否为 True，若为 False 则跳过该选股器
@@ -1372,7 +1370,7 @@ class BacktestEngine:
             return 0.0, {'code': code, 'reason': 'no_data'}
 
         self._ensure_project_root_on_path()
-        from Selector import compute_kdj, compute_bbi  # noqa: WPS433
+        from backtest.Selector import compute_kdj, compute_bbi  # noqa: WPS433
 
         df = df.copy()
         df = df.sort_values('date')

@@ -67,7 +67,7 @@
     {
       "class": "SuperB1Selector",
       "alias": "SuperB1战法",
-      "activate": true,
+      "activate": false,
       "params": {
         "lookback_n": 10,
         "close_vol_pct": 0.02,
@@ -87,7 +87,7 @@
     {
       "class": "BBIShortLongSelector",
       "alias": "补票战法",
-      "activate": true,
+      "activate": false,
       "params": {
         "n_short": 5,
         "n_long": 21,
@@ -102,7 +102,7 @@
     {
       "class": "PeakKDJSelector",        
       "alias": "填坑战法",
-      "activate": true,                 
+      "activate": false,                 
       "params": {
         "j_threshold": 10,                 
         "max_window": 120,                
@@ -114,7 +114,7 @@
     {
       "class": "MA60CrossVolumeWaveSelector",
       "alias": "上穿60放量战法",
-      "activate": true,
+      "activate": false,
       "params": {
         "lookback_n": 25,
         "vol_multiple": 1.8,
@@ -127,7 +127,7 @@
     {
       "class": "BigBullishVolumeSelector",
       "alias": "暴力K战法",
-      "activate": true,
+      "activate": false,
       "params": {
         "up_pct_threshold": 0.06,
         "upper_wick_pct_max": 0.02,            
