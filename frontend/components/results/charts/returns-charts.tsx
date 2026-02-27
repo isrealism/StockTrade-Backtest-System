@@ -16,7 +16,7 @@ import {
   ReferenceLine,
   Cell,
 } from "recharts";
-import { useBenchmark } from "@/frontend/lib/hooks";
+import { useBenchmark } from "@/lib/hooks";
 
 const CHART_STYLES = {
   grid: "hsl(220, 14%, 16%)",

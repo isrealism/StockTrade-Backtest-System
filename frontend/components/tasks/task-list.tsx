@@ -3,8 +3,8 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { cn, formatDate, formatPercent } from "@/frontend/lib/utils";
-import type { BacktestSummary } from "@/frontend/lib/api";
+import { cn, formatDate, formatPercent } from "@/lib/utils";
+import type { BacktestSummary } from "@/lib/api";
 import {
   Clock,
   CheckCircle2,

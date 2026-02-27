@@ -4,7 +4,7 @@ import { Suspense, useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import { TaskList } from "@/components/tasks/task-list";
 import { TaskDetail } from "@/components/tasks/task-detail";
-import { useBacktests } from "@/frontend/lib/hooks";
+import { useBacktests } from "@/lib/hooks";
 import { Loader2, ListChecks } from "lucide-react";
 
 export default function TasksPage() {

@@ -89,7 +89,7 @@ def main():
     print()
 
     # 初始化 IndicatorStore
-    db_path = "./data/indicators.db"
+    db_path = "./data/indicators.duckdb"
     if not Path(db_path).exists():
         print(f"❌ Database not found: {db_path}")
         sys.exit(1)

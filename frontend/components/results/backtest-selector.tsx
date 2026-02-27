@@ -7,8 +7,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { formatDate } from "@/frontend/lib/utils";
-import type { BacktestSummary } from "@/frontend/lib/api";
+import { formatDate } from "@/lib/utils";
+import type { BacktestSummary } from "@/lib/api";
 
 interface BacktestSelectorProps {
   backtests: BacktestSummary[];

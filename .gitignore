@@ -6,6 +6,8 @@ logs/
 *.csv
 *.db
 *.duckdb
+*.duckdb.wal
+!stocklist.csv
 
 
 # Python
@@ -15,7 +17,7 @@ backtest/_pycache_/
 *.pyc
 .venv/
 .env
-
+venv_stock/
 
 # Jupyter
 .ipynb_checkpoints/

@@ -18,6 +18,43 @@ from .portfolio import PortfolioManager
 from .execution import ExecutionEngine
 
 
+def _selector_chunk_worker(args):
+    """
+    模块级 worker 函数，供 ProcessPoolExecutor 跨进程调用。
+    必须定义在模块顶层才能被 pickle 序列化。
+
+    args: (selector_class_name, selector_params, indicator_db_path, date, chunk_codes, data_chunk)
+    """
+    selector_class_name, selector_params, indicator_db_path, date, chunk_codes, data_chunk = args
+
+    import sys
+    from pathlib import Path
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+    import backtest.Selector as Selector_module
+    selector_cls = getattr(Selector_module, selector_class_name)
+
+    # 重建 IndicatorStore
+    indicator_store = None
+    if indicator_db_path:
+        try:
+            from backtest.indicator_store import IndicatorStore
+            indicator_store = IndicatorStore(indicator_db_path)
+        except Exception:
+            pass
+
+    # 重建 selector
+    try:
+        local_selector = selector_cls(**selector_params)
+    except TypeError:
+        local_selector = selector_cls()
+
+    if indicator_store is not None and hasattr(local_selector, 'indicator_store'):
+        local_selector.indicator_store = indicator_store
+
+    return local_selector.select(date, data_chunk)
+
+
 class BacktestEngine:
     """
     Event-driven backtesting engine.
@@ -47,8 +84,22 @@ class BacktestEngine:
         slippage_rate: float = 0.001,
         buy_config: Optional[Dict[str, Any]] = None,
         log_callback: Optional[Any] = None,
-        use_indicator_db: bool = False,  # 新增：是否使用指标数据库
-        indicator_db_path: str = "./data/indicators.db"  # 新增：数据库路径
+        use_indicator_db: bool = True,
+        indicator_db_path: str = "./data/indicators.duckdb",
+        # ── Score 百分位过滤 ──────────────────────────────────────
+        score_filter_enabled: bool = False,
+        score_percentile_threshold: float = 60.0,
+        score_min_history: int = 20,
+        score_warmup_lookback_days: int = 20,   # 预热最多回看多少个交易日，默认20
+        # ── 换仓 (Rotation) ───────────────────────────────────────
+        rotation_enabled: bool = False,
+        rotation_min_stop_threshold: float = 0.05,
+        rotation_max_per_day: int = 2,
+        rotation_score_ratio: float = 1.2,
+        rotation_min_score_improvement: float = 10.0,
+        rotation_no_score_policy: str = "skip",
+        # ── 并行选股 ──────────────────────────────────────────────
+        parallel_workers: int = 0,   # 0 = 自动检测 CPU 核数
     ):
         """
         Initialize backtesting engine.
@@ -140,6 +191,42 @@ class BacktestEngine:
         # Data preparation cache (新增：数据准备缓存)
         self.data_cache: Dict[str, pd.DataFrame] = {}  # {code: df_up_to_current_date}
         self.cache_date: Optional[datetime] = None     # 缓存对应的日期
+
+        # ── Score 百分位过滤 ──────────────────────────────────────
+        if not (0.0 < score_percentile_threshold < 100.0):
+            raise ValueError(f"score_percentile_threshold must be in (0,100), got {score_percentile_threshold}")
+        if score_min_history < 1:
+            raise ValueError(f"score_min_history must be >= 1, got {score_min_history}")
+        self.score_filter_enabled: bool = score_filter_enabled
+        self.score_percentile_threshold: float = score_percentile_threshold
+        self.score_min_history: int = score_min_history
+        self.score_warmup_lookback_days: int = score_warmup_lookback_days
+        self.score_history: List[float] = []
+        self.score_warmup_complete: bool = False
+
+        # ── 换仓 (Rotation) ───────────────────────────────────────
+        self.rotation_manager = None
+        if rotation_enabled:
+            from .rotation_manager import RotationManager
+            self.rotation_manager = RotationManager(
+                min_stop_threshold=rotation_min_stop_threshold,
+                max_rotations_per_day=rotation_max_per_day,
+                score_ratio_threshold=rotation_score_ratio,
+                min_score_improvement=rotation_min_score_improvement,
+                no_score_position_policy=rotation_no_score_policy,
+                score_history_ref=self.score_history,
+            )
+            self.log(
+                f"Rotation enabled: min_loss={rotation_min_stop_threshold*100:.1f}%, "
+                f"max/day={rotation_max_per_day}, "
+                f"score_ratio>={rotation_score_ratio}x, "
+                f"score_improvement>={rotation_min_score_improvement}pts"
+            )
+
+        # ── 并行选股 ──────────────────────────────────────────────
+        import os
+        self.parallel_workers: int = parallel_workers if parallel_workers > 0 else os.cpu_count() or 1
+        self.log(f"Parallel workers: {self.parallel_workers}")
 
         # Log indicator database mode
         if self.use_indicator_db:
@@ -522,64 +609,113 @@ class BacktestEngine:
         self.log(f"Loaded sell strategy: {strategy_name}")
  
 
-    def get_buy_signals(self, date: datetime, cancel_check=None):
+    def _parallel_select(
+        self,
+        selector,
+        date: datetime,
+        data_up_to_date: Dict[str, pd.DataFrame],
+    ) -> List[str]:
         """
-        获取买入信号。
+        并行版 selector.select()：把股票池按 worker 数量分片，
+        用 ProcessPoolExecutor 并行跑 _passes_filters，最后合并结果。
 
-        核心逻辑：
-        - 无论是否使用指标数据库，都直接调用 selector.select()。
-        - 当 use_indicator_db=True 时，self.market_data 里的 DataFrame 已经包含
-          所有预计算指标列（kdj_j、bbi、ma60、dif、zxdq 等），选股器内部的
-          _passes_filters_with_db() 会直接读取这些列，无需任何实时计算。
-        - 当 use_indicator_db=False 时，DataFrame 只含 OHLCV，选股器走
-          _passes_filters_legacy()，行为与原来完全一致。
-        - 两条路径共用同一套 selector.select() 接口，代码统一、无冗余。
+        worker 函数定义在模块顶层（_selector_chunk_worker），可被 pickle 序列化。
+        子进程重建 selector 时同步重建 IndicatorStore，确保走 DB 路径。
         """
+        from concurrent.futures import ProcessPoolExecutor, as_completed
 
+        codes = list(data_up_to_date.keys())
+        n = self.parallel_workers
+
+        if n <= 1 or len(codes) <= n:
+            return selector.select(date, data_up_to_date)
+
+        chunk_size = max(1, len(codes) // n)
+        chunks = [codes[i:i + chunk_size] for i in range(0, len(codes), chunk_size)]
+
+        selector_class_name = type(selector).__name__
+        selector_params = {
+            k: v for k, v in vars(selector).items()
+            if not k.startswith('_') and k != 'indicator_store'
+        }
+        indicator_db_path = self.indicator_db_path if self.use_indicator_db else None
+
+        # 每个 chunk 的入参打包成 tuple 传给模块级 worker
+        tasks = [
+            (
+                selector_class_name,
+                selector_params,
+                indicator_db_path,
+                date,
+                chunk,
+                {c: data_up_to_date[c] for c in chunk if c in data_up_to_date},
+            )
+            for chunk in chunks
+        ]
+
+        picks: List[str] = []
+        with ProcessPoolExecutor(max_workers=n) as executor:
+            futures = {executor.submit(_selector_chunk_worker, task): task for task in tasks}
+            for future in as_completed(futures):
+                try:
+                    picks.extend(future.result())
+                except Exception as e:
+                    self.log(f"  [parallel_select] chunk error: {e}")
+
+        return picks
+
+    def get_buy_signals(self, date: datetime, cancel_check=None) -> List[BuySignal]:
+        """
+        获取当日原始买入信号（未经 score 百分位过滤）。
+
+        selector.select() 返回代码列表 → 逐支提取四个原始指标 → 实例化 BuySignal
+        → BuySignal.__post_init__ 自动计算 score 及四个子分。
+        score 计算逻辑完全封装在 BuySignal 内，engine 不再承担评分职责。
+        """
         import time
 
         self.log(f"\n{'='*80}")
         self.log(f"GETTING BUY SIGNALS FOR {date.date()}")
         self.log(f"{'='*80}")
 
-        # 获取截至当前日期的数据（含全部指标列，来自 DB 或纯 OHLCV）
         t0 = time.perf_counter()
         data_up_to_date = self._get_data_up_to_date(date)
         self.log(f"  Data slice ready: {len(data_up_to_date)} stocks in {time.perf_counter()-t0:.3f}s")
 
-        # 执行每个选股器
         signals_by_selector: Dict[str, List[BuySignal]] = {}
 
         for selector_info in self.buy_selectors:
             if cancel_check and cancel_check():
                 break
 
-            alias = selector_info['alias']
+            alias      = selector_info['alias']
             class_name = selector_info['class']
-            selector = selector_info['instance']
+            selector   = selector_info['instance']
 
             try:
                 self.log(f"  Running {alias}...")
                 t1 = time.perf_counter()
 
-                # selector.select() 返回符合条件的股票代码列表
-                picked_codes: List[str] = selector.select(date, data_up_to_date)
+                picked_codes: List[str] = self._parallel_select(selector, date, data_up_to_date)
+                self.log(f"    → {len(picked_codes)} picks in {time.perf_counter()-t1:.3f}s ({self.parallel_workers} workers)")
 
-                elapsed = time.perf_counter() - t1
-                self.log(f"    → {len(picked_codes)} picks in {elapsed:.3f}s")
-
-                # 将代码列表转换为 BuySignal 列表（附带评分）
                 signals: List[BuySignal] = []
                 for code in picked_codes:
-                    score, indicator_data = self._compute_signal_score(
-                        code, date,
-                        indicators=data_up_to_date[code].iloc[-1] if code in data_up_to_date else None
-                    )
+                    if code not in data_up_to_date:
+                        continue
+                    df_code  = data_up_to_date[code]
+                    last_row = df_code.iloc[-1]
+                    # 始终传入 df_code 作为 df_full，让 DB 路径在列缺失时能 fallback 实时计算
+                    ind = self._extract_indicators(code, last_row, df_code)
                     signal = BuySignal(
                         code=code,
-                        score=score,
-                        strategy_name=alias,
-                        indicators=indicator_data
+                        date=date,
+                        strategy_name=class_name,
+                        strategy_alias=alias,
+                        kdj_j=ind['kdj_j'],
+                        volume_ratio=ind['volume_ratio'],
+                        daily_return=ind['daily_return'],
+                        bbi_slope=ind['bbi_slope'],
                     )
                     signals.append(signal)
 
@@ -592,7 +728,6 @@ class BacktestEngine:
 
         final_signals = self._apply_combination_logic(signals_by_selector, date)
         final_signals.sort(key=lambda s: s.score, reverse=True)
-
         self.log(f"  Total signals after combination: {len(final_signals)}")
         return final_signals
 
@@ -798,14 +933,19 @@ class BacktestEngine:
                     # Use original trigger signal (but only if we're still before expiration)
                     buy_signal = pending['trigger_signal']
                 else:  # confirmation_day (default)
-                    # Create new signal with confirmation date
+                    # Create new signal with confirmation date; inherit raw indicators from
+                    # trigger signal so score is identical and stays encapsulated in BuySignal
+                    trig = pending['trigger_signal']
                     buy_signal = BuySignal(
                         code=code,
-                        date=current_date,  # Use confirmation date
-                        strategy_name=pending['trigger_signal'].strategy_name,
-                        strategy_alias=f"{pending['trigger_signal'].strategy_alias} (confirmed)",
-                        score=pending['trigger_signal'].score,
-                        signal_data=pending['trigger_signal'].signal_data
+                        date=current_date,
+                        strategy_name=trig.strategy_name,
+                        strategy_alias=f"{trig.strategy_alias} (confirmed)",
+                        kdj_j=trig.kdj_j,
+                        volume_ratio=trig.volume_ratio,
+                        daily_return=trig.daily_return,
+                        bbi_slope=trig.bbi_slope,
+                        signal_data=trig.signal_data,
                     )
 
                 confirmed_signals.append(buy_signal)
@@ -1034,7 +1174,8 @@ class BacktestEngine:
                 signal_date=date,
                 price=current_price,
                 buy_strategy=signal.strategy_alias,
-                market_data=df_up_to_date
+                market_data=df_up_to_date,
+                signal_score=signal.score,
             )
 
             signals_attempted += 1
@@ -1058,6 +1199,215 @@ class BacktestEngine:
         )
 
         return orders_created
+
+    # ══════════════════════════════════════════════════════════════════
+    #  Score 百分位过滤相关方法
+    # ══════════════════════════════════════════════════════════════════
+
+    def warmup_score_history(self, force_legacy: bool = True) -> None:
+        """
+        Bootstrap 预热：用 lookback_days 历史数据预填充 score_history。
+
+        在 setup_selectors() 和 load_sell_strategy() 之后、run() 之前调用。
+        预热期完整复用选股器管线（含 combination_logic），确保历史分布与
+        主循环信号口径一致。预热期内压制普通日志，但保留错误收集，完成后统一输出摘要。
+
+        Parameters
+        ----------
+        force_legacy : bool, default True
+            True 时预热期强制走实时计算（legacy）路径，忽略 indicator_db。
+            适用于 DB 数据尚未完整的情况。False 时沿用 engine 当前的 use_indicator_db 设置。
+        """
+        if not self.score_filter_enabled and self.rotation_manager is None:
+            return
+
+        if not self.buy_selectors:
+            self.log("warmup_score_history: no selectors loaded, skipping")
+            return
+
+        # 从 market_data 中提取严格早于 start_date 的交易日
+        # 注意：trading_dates 只含 [start_date, end_date] 区间内的日期，
+        # lookback 期的日期仅存在于 market_data 的 DataFrame 里，需要直接提取。
+        warmup_date_set: set = set()
+        for df in self.market_data.values():
+            pre_dates = df[df['date'] < self.start_date]['date']
+            warmup_date_set.update(pre_dates.tolist())
+        all_warmup_dates = sorted(warmup_date_set)
+
+        if not all_warmup_dates:
+            self.log("warmup_score_history: no warmup dates available (check lookback_days)")
+            return
+
+        # 只取最近的 score_warmup_lookback_days 个交易日，避免全量预热太慢
+        warmup_dates = all_warmup_dates[-self.score_warmup_lookback_days:]
+        skipped = len(all_warmup_dates) - len(warmup_dates)
+        if skipped > 0:
+            self.log(
+                f"  warmup_score_history: using last {len(warmup_dates)} of "
+                f"{len(all_warmup_dates)} available pre-start dates "
+                f"(set score_warmup_lookback_days to adjust)"
+            )
+
+        mode_str = "legacy (real-time)" if force_legacy else ("DB" if self.use_indicator_db else "legacy (real-time)")
+        self.log(f"\nWarming up score history over {len(warmup_dates)} pre-start dates [{mode_str} mode]...")
+
+        # force_legacy：临时把每个 selector 的 indicator_store 置 None，
+        # 强制走 _passes_filters_legacy()；engine 侧也临时关闭 DB 模式，
+        # 使 _extract_indicators 走实时计算路径。
+        saved_engine_db = self.use_indicator_db
+        saved_selector_stores = {}
+        if force_legacy and self.use_indicator_db:
+            self.use_indicator_db = False
+            for info in self.buy_selectors:
+                sel = info['instance']
+                if hasattr(sel, 'indicator_store'):
+                    saved_selector_stores[id(sel)] = sel.indicator_store
+                    sel.indicator_store = None
+
+        collected  = 0
+        date_errors: List[str] = []
+
+        try:
+            for date in warmup_dates:
+                try:
+                    signals, day_errors = self._get_raw_signals_for_date(date, silent=True)
+                    date_errors.extend(day_errors)
+                    for s in signals:
+                        self.score_history.append(s.score)
+                        collected += 1
+                except Exception as e:
+                    date_errors.append(f"{date.date()}: {e}")
+        finally:
+            # 无论成功与否，都恢复原始设置
+            if force_legacy and saved_engine_db:
+                self.use_indicator_db = saved_engine_db
+                for info in self.buy_selectors:
+                    sel = info['instance']
+                    if id(sel) in saved_selector_stores:
+                        sel.indicator_store = saved_selector_stores[id(sel)]
+
+        self.score_warmup_complete = True
+
+        # 有报错时统一输出（取前10条，避免刷屏）
+        if date_errors:
+            self.log(f"  [Warmup] {len(date_errors)} error(s) during warmup "
+                     f"(showing first 10):")
+            for err in date_errors[:10]:
+                self.log(f"    ✗ {err}")
+
+        if self.score_history:
+            arr = np.array(self.score_history)
+            self.log(
+                f"  Warmup complete: {collected} scores collected | "
+                f"p25={np.percentile(arr, 25):.1f} "
+                f"p50={np.percentile(arr, 50):.1f} "
+                f"p{self.score_percentile_threshold:.0f}={np.percentile(arr, self.score_percentile_threshold):.1f} "
+                f"p75={np.percentile(arr, 75):.1f} "
+                f"p90={np.percentile(arr, 90):.1f}"
+            )
+        else:
+            self.log(
+                "  Warmup complete: 0 scores collected. "
+                "Possible causes: selectors erroring out (see errors above), "
+                "or no stocks passed filters in warmup period."
+            )
+
+    def _get_raw_signals_for_date(
+        self, date: datetime, silent: bool = False
+    ) -> tuple:
+        """
+        获取指定日期的原始信号（不做 score 过滤，不追加 score_history）。
+
+        供 warmup_score_history 和主循环复用同一管线。
+
+        Returns
+        -------
+        (signals, errors) : (List[BuySignal], List[str])
+            signals : 当日信号列表
+            errors  : 选股器报错列表（silent=True 时收集而非打印）
+        """
+        errors: List[str] = []
+
+        if silent:
+            orig_log = self.log
+            self.log = lambda _: None
+
+        try:
+            data_up_to_date = self._get_data_up_to_date(date)
+            signals_by_selector: Dict[str, List[BuySignal]] = {}
+
+            for selector_info in self.buy_selectors:
+                alias      = selector_info['alias']
+                class_name = selector_info['class']
+                selector   = selector_info['instance']
+                try:
+                    picked_codes: List[str] = self._parallel_select(selector, date, data_up_to_date)
+                    signals: List[BuySignal] = []
+                    for code in picked_codes:
+                        if code not in data_up_to_date:
+                            continue
+                        df_code  = data_up_to_date[code]
+                        last_row = df_code.iloc[-1]
+                        ind = self._extract_indicators(code, last_row, df_code)
+                        signals.append(BuySignal(
+                            code=code,
+                            date=date,
+                            strategy_name=class_name,
+                            strategy_alias=alias,
+                            kdj_j=ind['kdj_j'],
+                            volume_ratio=ind['volume_ratio'],
+                            daily_return=ind['daily_return'],
+                            bbi_slope=ind['bbi_slope'],
+                        ))
+                    signals_by_selector[class_name] = signals
+                except Exception as e:
+                    import traceback
+                    err_msg = f"{date.date()} [{alias}]: {e} | {traceback.format_exc().splitlines()[-1]}"
+                    if silent:
+                        errors.append(err_msg)
+                    else:
+                        self.log(f"  ERROR in {alias}: {e}\n{traceback.format_exc()}")
+                    signals_by_selector[class_name] = []
+
+            final = self._apply_combination_logic(signals_by_selector, date)
+            final.sort(key=lambda s: s.score, reverse=True)
+            return final, errors
+
+        finally:
+            if silent:
+                self.log = orig_log  # type: ignore[assignment]
+
+    def filter_signals_by_score(
+        self, raw_signals: List[BuySignal], date: datetime
+    ) -> List[BuySignal]:
+        """
+        将当日信号 score 追加进 score_history，然后按百分位阈值过滤。
+
+        注意：先追加再过滤，保证今日 score 不参与今日阈值计算（防未来函数）。
+        历史样本不足 score_min_history 时退化为不过滤（输出警告）。
+        """
+        if not self.score_filter_enabled:
+            return raw_signals
+
+        # 先追加（今日 score 进入历史，但不用于计算今日阈值）
+        for s in raw_signals:
+            self.score_history.append(s.score)
+
+        if len(self.score_history) < self.score_min_history:
+            self.log(
+                f"  [ScoreFilter] History too short ({len(self.score_history)} < {self.score_min_history}), "
+                f"skipping filter"
+            )
+            return raw_signals
+
+        threshold = float(np.percentile(self.score_history, self.score_percentile_threshold))
+        filtered  = [s for s in raw_signals if s.score >= threshold]
+
+        self.log(
+            f"  [ScoreFilter] threshold={threshold:.1f} (p{self.score_percentile_threshold:.0f}) | "
+            f"{len(raw_signals)} → {len(filtered)} signals"
+        )
+        return filtered
 
     def run(self, progress_callback: Optional[Any] = None, cancel_check: Optional[Any] = None):
         """
@@ -1127,21 +1477,50 @@ class BacktestEngine:
             self.portfolio.update_positions(date, current_market_data)      # 更新持仓的最高价格和持有天数
 
             # 4. Check sell signals
-            sell_signals = self.check_sell_signals(date, cancel_check=cancel_check)    # 检查卖出信号，传递 cancel_check
-            for code, reason in sell_signals:       
-                # Get current price for logging
+            sell_signals = self.check_sell_signals(date, cancel_check=cancel_check)
+            sell_triggered_codes: set = set()
+            for code, reason in sell_signals:
                 if code in current_market_data:
                     current_price = current_market_data[code]['close']
                     position = self.portfolio.get_position(code)
                     if position:
                         unrealized_pnl_pct = position.unrealized_pnl_pct(current_price) * 100
-                        self.log(f"  SELL SIGNAL: {code} ({reason}) P&L: {unrealized_pnl_pct:+.2f}%")       # 记录卖出信号、卖出原因和未实现收益率百分比
-
-                # Generate sell order for T+1
+                        self.log(f"  SELL SIGNAL: {code} ({reason}) P&L: {unrealized_pnl_pct:+.2f}%")
                 self.portfolio.generate_sell_order(code, date, reason)
+                sell_triggered_codes.add(code)
 
-            # 5. Get buy signals
-            buy_signals = self.get_buy_signals(date, cancel_check=cancel_check)        # 获取买入信号，传递 cancel_check
+            # 5. Get buy signals（原始）→ score 过滤
+            raw_signals, _  = self._get_raw_signals_for_date(date)
+            buy_signals  = self.filter_signals_by_score(raw_signals, date)
+
+            # 5.5. Rotation（换仓）
+            if self.rotation_manager is not None and buy_signals:
+                current_prices = {
+                    code: float(current_market_data[code]['close'])
+                    for code in current_market_data
+                }
+                rotation_pairs = self.rotation_manager.find_rotation_pairs(
+                    positions=self.portfolio.positions,
+                    good_signals=buy_signals,
+                    current_prices=current_prices,
+                    date=date,
+                    sell_triggered_codes=sell_triggered_codes,
+                )
+                if rotation_pairs:
+                    self.log(f"  Rotation: {len(rotation_pairs)} pair(s) found")
+                    r_sells, r_buys = self.rotation_manager.execute_rotations(
+                        pairs=rotation_pairs,
+                        portfolio=self.portfolio,
+                        date=date,
+                        current_prices=current_prices,
+                        market_data_cache=self.data_cache,
+                        log_fn=self.log,
+                    )
+                    # 从信号池中移除已被换仓消耗的代码，避免重复建仓
+                    rotation_entry_codes = {o.code for o in r_buys}
+                    buy_signals = [s for s in buy_signals if s.code not in rotation_entry_codes]
+                    for pair in rotation_pairs:
+                        sell_triggered_codes.add(pair.exit_position.code)
 
             # 6. Generate buy orders for T+1 with fallback mechanism
             self._process_buy_signals_with_fallback(date, buy_signals, current_market_data)
@@ -1239,6 +1618,9 @@ class BacktestEngine:
             'num_positions': len(self.portfolio.positions)
         }
 
+        if self.rotation_manager is not None:
+            results['rotation_summary'] = self.rotation_manager.get_rotation_summary()
+
         return results
 
     def log(self, message: str):
@@ -1251,188 +1633,117 @@ class BacktestEngine:
             except Exception:
                 pass
 
-    def _compute_signal_score(
-        self, 
-        code: str, 
-        date: datetime,
-        indicators: Optional[pd.Series] = None  # ← 新增参数
-    ) -> tuple[float, Dict[str, Any]]:
+    def _extract_indicators(
+        self,
+        code: str,
+        last_row: pd.Series,
+        df_full: Optional[pd.DataFrame] = None,
+    ) -> Dict[str, float]:
         """
-        计算买入信号评分（优化版）
-        
-        优化点：
-        1. 优先使用批量查询传入的indicators
-        2. 回退到数据库单独查询
-        3. 最后才实时计算
+        从行数据或完整 DataFrame 中提取 BuySignal 所需的四个原始指标。
+
+        优先级：
+        1. last_row 已含预计算指标列（DB 模式）→ 直接读取
+        2. last_row 无指标但传入 df_full（legacy 模式）→ 实时计算
+        3. 两者均不满足 → 返回全零（score 自然为 0）
+
+        Returns
+        -------
+        dict with keys: kdj_j, volume_ratio, daily_return, bbi_slope
         """
-        
-            # 优先使用传入的指标
-        if indicators is not None:
-        if indicators is not None and 'kdj_j' in indicators:
-            # Only use provided indicators if they contain required fields (e.g. from DB)
-            return self._compute_score_from_indicators(code, indicators)
-        
-        # 回退：从数据库查询
-        if self.use_indicator_db and self.indicator_store:
-            date_str = date.strftime('%Y-%m-%d')
-            try:
-                df = self.indicator_store.get_indicators(code, date_str, date_str)
-                if not df.empty:
-                    indicators = df.iloc[0]
-                    return self._compute_score_from_indicators(code, indicators)
-            except Exception:
-                pass
-        
-        # 最后回退：实时计算
-        return self._compute_score_legacy(code)
+        # ── 路径1：DB 模式，last_row 含指标列 ─────────────────────
+        if last_row is not None and 'kdj_j' in last_row.index:
+            kdj_j = float(last_row.get('kdj_j', float('nan')))
 
-
-    def _compute_score_from_indicators(
-            self,
-            code: str,
-            indicators: pd.Series
-        ) -> tuple[float, Dict[str, Any]]:
-            """从预计算指标计算评分"""
-            
-            try:
-                # 提取指标
-                kdj_j = float(indicators.get('kdj_j', np.nan))
-                volume = float(indicators.get('volume', 0))
-                close = float(indicators.get('close', 0))
-                
-                # volume_ratio
-                if 'volume_ratio' in indicators and not pd.isna(indicators['volume_ratio']):
-                    volume_ratio = float(indicators['volume_ratio'])
-                else:
-                    ma20_volume = float(indicators.get('ma20_volume', volume))
-                    volume_ratio = volume / ma20_volume if ma20_volume > 0 else 0.0
-                
-                # daily_return
-                if 'daily_return' in indicators and not pd.isna(indicators['daily_return']):
-                    daily_return = float(indicators['daily_return'])
-                else:
-                    daily_return = 0.0
-                
-                # bbi_slope
-                if 'bbi_slope_5d' in indicators and not pd.isna(indicators['bbi_slope_5d']):
-                    bbi_slope = float(indicators['bbi_slope_5d'])
-                else:
-                    bbi_slope = 0.0
-                
-            except (KeyError, ValueError, TypeError) as e:
-                return 0.0, {'code': code, 'reason': f'invalid_data: {e}'}
-            
-            # 验证
-            if np.isnan(kdj_j) or close == 0:
-                return 0.0, {'code': code, 'reason': 'invalid_indicators'}
-            
-            # 计算分数
-            kdj_score = max(0.0, min(100.0, 100.0 - kdj_j))
-            volume_score = max(0.0, min(100.0, (volume_ratio - 1.0) / 2.0 * 100.0))
-            
-            if daily_return <= 0:
-                momentum_score = 0.0
-            elif daily_return <= 0.02:
-                momentum_score = (daily_return / 0.02) * 100.0
-            elif daily_return <= 0.05:
-                momentum_score = 100.0 - ((daily_return - 0.02) / 0.03) * 50.0
+            # volume_ratio：优先取预计算列，否则用 ma20_volume 估算，再否则从 df_full 实时算
+            volume = float(last_row.get('volume', 0))
+            if 'volume_ratio' in last_row.index and not pd.isna(last_row['volume_ratio']):
+                volume_ratio = float(last_row['volume_ratio'])
+            elif 'ma20_volume' in last_row.index and not pd.isna(last_row['ma20_volume']):
+                ma20_vol = float(last_row['ma20_volume'])
+                volume_ratio = volume / ma20_vol if ma20_vol > 0 else 0.0
+            elif df_full is not None and len(df_full) >= 2 and 'volume' in df_full.columns:
+                avg_vol = float(df_full['volume'].tail(20).mean())
+                volume_ratio = volume / avg_vol if avg_vol > 0 else 0.0
             else:
-                momentum_score = 50.0
-            momentum_score = max(0.0, min(100.0, momentum_score))
-            
-            bbi_score = max(0.0, min(100.0, (bbi_slope / 0.005) * 100.0)) if bbi_slope > 0 else 0.0
-            
-            composite = (
-                0.4 * kdj_score +
-                0.3 * volume_score +
-                0.2 * momentum_score +
-                0.1 * bbi_score
-            )
-            
-            indicator_data = {
-                'kdj_j': kdj_j,
-                'volume_ratio': volume_ratio,
-                'momentum_pct': daily_return,
-                'bbi_slope': bbi_slope,
-                'score_breakdown': {
-                    'kdj': kdj_score,
-                    'volume': volume_score,
-                    'momentum': momentum_score,
-                    'bbi': bbi_score
-                }
-            }
-            
-            return float(composite), indicator_data
+                volume_ratio = 0.0
 
-    def _compute_score_legacy(self, code: str, df: Optional[pd.DataFrame]) -> tuple[float, Dict[str, Any]]:
-        """Compute composite score and indicator data for a buy signal."""
-        if df is None or df.empty:
-            return 0.0, {'code': code, 'reason': 'no_data'}
+            # daily_return：优先取预计算列，否则从 df_full 或 last_row 前一行实时算
+            if 'daily_return' in last_row.index and not pd.isna(last_row['daily_return']):
+                daily_return = float(last_row['daily_return'])
+            elif df_full is not None and len(df_full) >= 2 and 'close' in df_full.columns:
+                df_sorted = df_full.sort_values('date')
+                prev  = float(df_sorted['close'].iloc[-2])
+                curr  = float(df_sorted['close'].iloc[-1])
+                daily_return = (curr / prev - 1.0) if prev > 0 else 0.0
+            elif 'prev_close' in last_row.index and not pd.isna(last_row['prev_close']):
+                prev_close = float(last_row['prev_close'])
+                close      = float(last_row.get('close', 0))
+                daily_return = (close / prev_close - 1.0) if prev_close > 0 else 0.0
+            else:
+                daily_return = 0.0
+
+            # bbi_slope：优先取预计算列，否则从 df_full 实时算
+            if 'bbi_slope_5d' in last_row.index and not pd.isna(last_row['bbi_slope_5d']):
+                bbi_slope = float(last_row['bbi_slope_5d'])
+            elif df_full is not None and len(df_full) >= 5:
+                try:
+                    self._ensure_project_root_on_path()
+                    from backtest.Selector import compute_bbi  # noqa: WPS433
+                    bbi = compute_bbi(df_full.sort_values('date')).dropna()
+                    bbi_slope = 0.0
+                    if len(bbi) >= 2:
+                        win = bbi.tail(5)
+                        if len(win) >= 2 and win.iloc[0] != 0:
+                            bbi_slope = (win.iloc[-1] - win.iloc[0]) / win.iloc[0] / (len(win) - 1)
+                except Exception:
+                    bbi_slope = 0.0
+            else:
+                bbi_slope = 0.0
+
+            return dict(kdj_j=kdj_j, volume_ratio=volume_ratio,
+                        daily_return=daily_return, bbi_slope=bbi_slope)
+
+        # ── 路径2：Legacy 模式，实时计算 ──────────────────────────
+        if df_full is None or df_full.empty:
+            return dict(kdj_j=float('nan'), volume_ratio=0.0,
+                        daily_return=0.0, bbi_slope=0.0)
 
         self._ensure_project_root_on_path()
         from backtest.Selector import compute_kdj, compute_bbi  # noqa: WPS433
 
-        df = df.copy()
-        df = df.sort_values('date')
+        df = df_full.sort_values('date').copy()
 
-        # KDJ score
-        kdj_df = compute_kdj(df)
-        current_j = float(kdj_df['J'].iloc[-1]) if 'J' in kdj_df.columns else float('nan')
-        kdj_score = max(0.0, min(100.0, 100.0 - current_j)) if not np.isnan(current_j) else 0.0
+        # KDJ J 值
+        try:
+            kdj_df = compute_kdj(df)
+            kdj_j  = float(kdj_df['J'].iloc[-1]) if 'J' in kdj_df.columns else float('nan')
+        except Exception:
+            kdj_j  = float('nan')
 
-        # Volume score (20-day avg)
-        volume = float(df['volume'].iloc[-1]) if 'volume' in df.columns else 0.0
-        avg_volume = float(df['volume'].tail(20).mean()) if 'volume' in df.columns else 0.0
-        volume_ratio = volume / avg_volume if avg_volume > 0 else 0.0
-        volume_score = max(0.0, min(100.0, (volume_ratio - 1.0) / 2.0 * 100.0))
+        # 量比
+        volume     = float(df['volume'].iloc[-1]) if 'volume' in df.columns else 0.0
+        avg_vol    = float(df['volume'].tail(20).mean()) if 'volume' in df.columns else 0.0
+        volume_ratio = volume / avg_vol if avg_vol > 0 else 0.0
 
-        # Momentum score (daily return)
-        if len(df) >= 2:
-            prev_close = float(df['close'].iloc[-2])
-            current_close = float(df['close'].iloc[-1])
-            momentum_pct = (current_close / prev_close - 1.0) if prev_close > 0 else 0.0
+        # 单日涨幅
+        if len(df) >= 2 and 'close' in df.columns:
+            prev  = float(df['close'].iloc[-2])
+            curr  = float(df['close'].iloc[-1])
+            daily_return = (curr / prev - 1.0) if prev > 0 else 0.0
         else:
-            momentum_pct = 0.0
+            daily_return = 0.0
 
-        if momentum_pct <= 0:
-            momentum_score = 0.0
-        elif momentum_pct <= 0.02:
-            momentum_score = (momentum_pct / 0.02) * 100.0
-        elif momentum_pct <= 0.05:
-            momentum_score = 100.0 - ((momentum_pct - 0.02) / 0.03) * 50.0
-        else:
-            momentum_score = 50.0
-        momentum_score = max(0.0, min(100.0, momentum_score))
+        # BBI 5日斜率
+        try:
+            bbi    = compute_bbi(df).dropna()
+            bbi_slope = 0.0
+            if len(bbi) >= 2:
+                win = bbi.tail(5)
+                if len(win) >= 2 and win.iloc[0] != 0:
+                    bbi_slope = (win.iloc[-1] - win.iloc[0]) / win.iloc[0] / (len(win) - 1)
+        except Exception:
+            bbi_slope = 0.0
 
-        # BBI slope score
-        bbi = compute_bbi(df)
-        bbi = bbi.dropna()
-        bbi_slope = 0.0
-        if len(bbi) >= 2:
-            window = bbi.tail(5)
-            if len(window) >= 2 and window.iloc[0] != 0:
-                bbi_slope = (window.iloc[-1] - window.iloc[0]) / window.iloc[0] / (len(window) - 1)
-        bbi_score = max(0.0, min(100.0, (bbi_slope / 0.005) * 100.0)) if bbi_slope > 0 else 0.0
-
-        # Composite score
-        composite = (
-            0.4 * kdj_score +
-            0.3 * volume_score +
-            0.2 * momentum_score +
-            0.1 * bbi_score
-        )
-
-        indicator_data = {
-            'kdj_j': current_j,
-            'volume_ratio': volume_ratio,
-            'momentum_pct': momentum_pct,
-            'bbi_slope': bbi_slope,
-            'score_breakdown': {
-                'kdj': kdj_score,
-                'volume': volume_score,
-                'momentum': momentum_score,
-                'bbi': bbi_score
-            }
-        }
-
-        return float(composite), indicator_data 
+        return dict(kdj_j=kdj_j, volume_ratio=volume_ratio,
+                    daily_return=daily_return, bbi_slope=bbi_slope)

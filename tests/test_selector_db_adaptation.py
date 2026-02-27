@@ -27,7 +27,7 @@ def test_selector_consistency():
     print()
 
     # 初始化 IndicatorStore
-    store = IndicatorStore("./data/indicators.db")
+    store = IndicatorStore("./data/indicators.duckdb")
     stats = store.get_database_stats()
     print(f"Database: {stats['total_stocks']} stocks, {stats['total_rows']} rows")
     print()

@@ -1,7 +1,7 @@
 "use client";
 
 import { BacktestForm } from "@/components/backtest/backtest-form";
-import { useConfig } from "@/frontend/lib/hooks";
+import { useConfig } from "@/lib/hooks";
 import { Loader2 } from "lucide-react";
 
 // Default configs that match the Python backend's configs.json

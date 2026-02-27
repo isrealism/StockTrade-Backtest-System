@@ -240,7 +240,8 @@ class PortfolioManager:
         signal_date: datetime,
         price: float,
         buy_strategy: str,
-        market_data: Optional[pd.DataFrame] = None
+        market_data: Optional[pd.DataFrame] = None,
+        signal_score: float = 0.0,
     ) -> Optional[Order]:
         """
         Generate buy order for T+1 execution.
@@ -284,6 +285,9 @@ class PortfolioManager:
         # This allows get_projected_cash() to account for this order when processing subsequent signals
         estimated_cost = self.execution_engine.estimate_buy_cost(shares, price)
         order.total_cost = estimated_cost
+
+        # 将入场 score 挂载到订单上，供 _execute_buy 写入 Position.buy_signal_data
+        order._signal_score = signal_score
 
         self.pending_orders.append(order)
         return order
@@ -455,6 +459,25 @@ class PortfolioManager:
             cost_basis=order.total_cost,
             buy_strategy=order.buy_strategy
         )
+
+        # 写入 entry_score 到 buy_signal_data，供换仓逻辑比较
+        # 普通买入：score 挂在 order._signal_score 上
+        # 换仓买入：score 编码在 order.reason 的 "rotation_entry|entry_score=XX" 中
+        entry_score: float = getattr(order, '_signal_score', 0.0)
+        is_rotation = False
+        if not entry_score and order.reason and 'entry_score=' in (order.reason or ''):
+            try:
+                entry_score = float(
+                    order.reason.split('entry_score=')[1].split('|')[0].split('\n')[0]
+                )
+                is_rotation = 'rotation_entry' in order.reason
+            except (ValueError, IndexError):
+                pass
+        if entry_score:
+            position.buy_signal_data = {
+                'entry_score': entry_score,
+                'rotation': is_rotation,
+            }
 
         self.positions[order.code] = position
 

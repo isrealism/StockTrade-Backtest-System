@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useBacktests, useBacktest, useBacktestAnalysis } from "@/frontend/lib/hooks";
+import { useBacktests, useBacktest, useBacktestAnalysis } from "@/lib/hooks";
 import { BacktestSelector } from "@/components/results/backtest-selector";
 import { BenchmarkSelector } from "@/components/results/benchmark-selector";
 import { KpiCards } from "@/components/results/kpi-cards";

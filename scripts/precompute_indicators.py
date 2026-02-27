@@ -16,13 +16,13 @@
 
 Usage:
     # 全量计算（首次运行）
-    python scripts/precompute_indicators.py --mode full --data-dir ./data --db ./data/indicators.duckdb
+    python scripts/precompute_indicators.py --mode full --data-dir ./data/kline --db ./data/indicators.duckdb
 
     # 增量更新（只计算新日期）
-    python scripts/precompute_indicators.py --mode incremental --data-dir ./data --db ./data/indicators.db
+    python scripts/precompute_indicators.py --mode incremental --data-dir ./data --db ./data/indicators.duckdb
 
     # 指定股票
-    python scripts/precompute_indicators.py --codes 000001,000002 --db ./data/indicators.db
+    python scripts/precompute_indicators.py --codes 000001,000002 --db ./data/indicators.duckdb
 
     # 并行计算（6个工作线程）
     python scripts/precompute_indicators.py --mode full --workers 6
@@ -37,6 +37,7 @@ Usage:
 import argparse
 import threading
 import sys
+import os
 import time
 import json
 import logging
@@ -46,6 +47,7 @@ from typing import List, Optional, Tuple, Dict
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from tqdm import tqdm
 from dataclasses import dataclass
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import numpy as np
 import pandas as pd
@@ -524,13 +526,13 @@ def main():
         "--data-dir",
         type=str,
         default="./data",
-        help="Data directory containing CSV files (default: ./data)"
+        help="Data directory containing CSV files (default: ./data/kline)"
     )
     parser.add_argument(
         "--db",
         type=str,
         default="./data/indicators.duckdb",
-        help="Database file path (default: ./data/indicators.db)"
+        help="Database file path (default: ./data/indicators.duckdb)"
     )
     parser.add_argument(
         "--codes",

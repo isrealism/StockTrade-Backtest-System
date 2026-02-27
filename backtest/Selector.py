@@ -198,7 +198,7 @@ class BBIKDJSelector:
             if self._passes_filters(code_to_hist[code]):
                 picks.append(code)
         t3 = time.time()
-        print(f"精细过滤耗时: {t3 - t2:.2f}s，候选股票数量: {len(candidates)}")
+        #print(f"精细过滤耗时: {t3 - t2:.2f}s，候选股票数量: {len(candidates)}")
 
         return picks
 

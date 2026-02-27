@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/select";
 import { SelectorConfig } from "./selector-config";
 import { SellStrategyConfig } from "./sell-strategy-config";
-import { createBacktest, type BacktestPayload, type SelectorConfig as SelectorType, type SellStrategyConfig as SellType } from "@/frontend/lib/api";
+import { createBacktest, type BacktestPayload, type SelectorConfig as SelectorType, type SellStrategyConfig as SellType } from "@/lib/api";
 import {
   Play,
   Save,
@@ -27,7 +27,7 @@ import {
   ChevronDown,
   ChevronRight,
 } from "lucide-react";
-import { cn } from "@/frontend/lib/utils";
+import { cn } from "@/lib/utils";
 
 interface BacktestFormProps {
   selectors: SelectorType[];

@@ -1,8 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { cn } from "@/frontend/lib/utils";
-import { formatPercent } from "@/frontend/lib/utils";
+import { cn } from "@/lib/utils";
+import { formatPercent } from "@/lib/utils";
 import {
   Select,
   SelectContent,

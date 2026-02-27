@@ -1,0 +1,3036 @@
+{
+  "equity_curve": [
+    {
+      "date": "2025-01-02T00:00:00",
+      "cash": 1000000.0,
+      "position_value": 0.0,
+      "total_value": 1000000.0,
+      "num_positions": 0,
+      "frozen_cash": 0,
+      "pending_proceeds": 0.0
+    },
+    {
+      "date": "2025-01-03T00:00:00",
+      "cash": 902949.9697228,
+      "position_value": 94728.0,
+      "total_value": 997677.9697228,
+      "num_positions": 2,
+      "frozen_cash": 0,
+      "pending_proceeds": 0.0
+    },
+    {
+      "date": "2025-01-06T00:00:00",
+      "cash": 902949.9697228,
+      "position_value": 92832.0,
+      "total_value": 995781.9697228,
+      "num_positions": 2,
+      "frozen_cash": 0,
+      "pending_proceeds": 0.0
+    },
+    {
+      "date": "2025-01-07T00:00:00",
+      "cash": 403047.3796164,
+      "position_value": 598012.0,
+      "total_value": 1001059.3796164,
+      "num_positions": 9,
+      "frozen_cash": 0,
+      "pending_proceeds": 45914.21382599999
+    },
+    {
+      "date": "2025-01-08T00:00:00",
+      "cash": 3698.3695369000343,
+      "position_value": 1052256.0,
+      "total_value": 1055954.3695369,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 0.0
+    },
+    {
+      "date": "2025-01-09T00:00:00",
+      "cash": 3698.3695369000343,
+      "position_value": 1042431.0,
+      "total_value": 1046129.3695369001,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 0.0
+    },
+    {
+      "date": "2025-01-10T00:00:00",
+      "cash": 3698.3695369000343,
+      "position_value": 1027792.0,
+      "total_value": 1031490.3695369001,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 0.0
+    },
+    {
+      "date": "2025-01-13T00:00:00",
+      "cash": 3698.3695369000343,
+      "position_value": 1017873.0,
+      "total_value": 1021571.3695369001,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 0.0
+    },
+    {
+      "date": "2025-01-14T00:00:00",
+      "cash": 3698.3695369000343,
+      "position_value": 1040590.0,
+      "total_value": 1044288.3695369001,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 0.0
+    },
+    {
+      "date": "2025-01-15T00:00:00",
+      "cash": 3698.3695369000343,
+      "position_value": 1032424.0,
+      "total_value": 1036122.3695369001,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 0.0
+    },
+    {
+      "date": "2025-01-16T00:00:00",
+      "cash": 3698.3695369000343,
+      "position_value": 1035729.0,
+      "total_value": 1039427.3695369001,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 0.0
+    },
+    {
+      "date": "2025-01-17T00:00:00",
+      "cash": 3698.3695369000343,
+      "position_value": 1038210.0,
+      "total_value": 1041908.3695369001,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 0.0
+    },
+    {
+      "date": "2025-01-20T00:00:00",
+      "cash": 3698.3695369000343,
+      "position_value": 1035855.0,
+      "total_value": 1039553.3695369001,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 0.0
+    },
+    {
+      "date": "2025-01-21T00:00:00",
+      "cash": 3698.3695369000343,
+      "position_value": 1029692.0,
+      "total_value": 1033390.3695369001,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 0.0
+    },
+    {
+      "date": "2025-01-22T00:00:00",
+      "cash": 3698.3695369000343,
+      "position_value": 1022738.0,
+      "total_value": 1026436.3695369001,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 0.0
+    },
+    {
+      "date": "2025-01-23T00:00:00",
+      "cash": 3698.3695369000343,
+      "position_value": 1022709.0,
+      "total_value": 1026407.3695369001,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 0.0
+    },
+    {
+      "date": "2025-01-24T00:00:00",
+      "cash": 3698.3695369000343,
+      "position_value": 1026524.0,
+      "total_value": 1030222.3695369001,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 0.0
+    },
+    {
+      "date": "2025-01-27T00:00:00",
+      "cash": 3698.3695369000343,
+      "position_value": 1035090.0,
+      "total_value": 1038788.3695369001,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 0.0
+    },
+    {
+      "date": "2025-02-05T00:00:00",
+      "cash": 3698.3695369000343,
+      "position_value": 1019092.0,
+      "total_value": 1022790.3695369001,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 0.0
+    },
+    {
+      "date": "2025-02-06T00:00:00",
+      "cash": 3698.3695369000343,
+      "position_value": 1018136.0,
+      "total_value": 1021834.3695369001,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 0.0
+    },
+    {
+      "date": "2025-02-07T00:00:00",
+      "cash": 3698.3695369000343,
+      "position_value": 1021968.0,
+      "total_value": 1025666.3695369001,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 0.0
+    },
+    {
+      "date": "2025-02-10T00:00:00",
+      "cash": 3698.3695369000343,
+      "position_value": 1028375.0,
+      "total_value": 1032073.3695369001,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 0.0
+    },
+    {
+      "date": "2025-02-11T00:00:00",
+      "cash": 3698.3695369000343,
+      "position_value": 1028855.0,
+      "total_value": 1032553.3695369001,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 0.0
+    },
+    {
+      "date": "2025-02-12T00:00:00",
+      "cash": 3698.3695369000343,
+      "position_value": 1035940.0,
+      "total_value": 1039638.3695369001,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 0.0
+    },
+    {
+      "date": "2025-02-13T00:00:00",
+      "cash": 3698.3695369000343,
+      "position_value": 1037811.0,
+      "total_value": 1041509.3695369001,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 0.0
+    },
+    {
+      "date": "2025-02-14T00:00:00",
+      "cash": 3698.3695369000343,
+      "position_value": 1046545.0,
+      "total_value": 1050243.3695369,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 0.0
+    },
+    {
+      "date": "2025-02-17T00:00:00",
+      "cash": 3698.3695369000343,
+      "position_value": 1051860.0,
+      "total_value": 1055558.3695369,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 0.0
+    },
+    {
+      "date": "2025-02-18T00:00:00",
+      "cash": 3698.3695369000343,
+      "position_value": 1048796.0,
+      "total_value": 1052494.3695369,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 0.0
+    },
+    {
+      "date": "2025-02-19T00:00:00",
+      "cash": 58668.06176850003,
+      "position_value": 994779.0,
+      "total_value": 1053447.0617685001,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 58197.9122316
+    },
+    {
+      "date": "2025-02-20T00:00:00",
+      "cash": 116865.97400010003,
+      "position_value": 995494.0,
+      "total_value": 1112359.9740001,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 0.0
+    },
+    {
+      "date": "2025-02-21T00:00:00",
+      "cash": 116865.97400010003,
+      "position_value": 1001025.0,
+      "total_value": 1117890.9740001,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 0.0
+    },
+    {
+      "date": "2025-02-24T00:00:00",
+      "cash": 116865.97400010003,
+      "position_value": 1004330.0,
+      "total_value": 1121195.9740001,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 0.0
+    },
+    {
+      "date": "2025-02-25T00:00:00",
+      "cash": 116865.97400010003,
+      "position_value": 994486.0,
+      "total_value": 1111351.9740001,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 0.0
+    },
+    {
+      "date": "2025-02-26T00:00:00",
+      "cash": 116865.97400010003,
+      "position_value": 1001458.0,
+      "total_value": 1118323.9740001,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 0.0
+    },
+    {
+      "date": "2025-02-27T00:00:00",
+      "cash": 127147.15174150004,
+      "position_value": 989062.0,
+      "total_value": 1116209.1517415,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 126626.25359339999
+    },
+    {
+      "date": "2025-02-28T00:00:00",
+      "cash": 74153.98633730004,
+      "position_value": 1159608.0,
+      "total_value": 1233761.9863373,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 64998.2442924
+    },
+    {
+      "date": "2025-03-03T00:00:00",
+      "cash": 74153.98633730004,
+      "position_value": 1157766.0,
+      "total_value": 1231919.9863373,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 64998.2442924
+    },
+    {
+      "date": "2025-03-04T00:00:00",
+      "cash": 69524.39963270005,
+      "position_value": 1181762.0,
+      "total_value": 1251286.3996327,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 132053.7486654
+    },
+    {
+      "date": "2025-03-05T00:00:00",
+      "cash": 136579.90400570005,
+      "position_value": 1181773.0,
+      "total_value": 1318352.9040057,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 64998.2442924
+    },
+    {
+      "date": "2025-03-06T00:00:00",
+      "cash": 136579.90400570005,
+      "position_value": 1184777.0,
+      "total_value": 1321356.9040057,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 64998.2442924
+    },
+    {
+      "date": "2025-03-07T00:00:00",
+      "cash": 136579.90400570005,
+      "position_value": 1195504.0,
+      "total_value": 1332083.9040057,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 64998.2442924
+    },
+    {
+      "date": "2025-03-10T00:00:00",
+      "cash": 136579.90400570005,
+      "position_value": 1188800.0,
+      "total_value": 1325379.9040057,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 64998.2442924
+    },
+    {
+      "date": "2025-03-11T00:00:00",
+      "cash": 136579.90400570005,
+      "position_value": 1194902.0,
+      "total_value": 1331481.9040057,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 64998.2442924
+    },
+    {
+      "date": "2025-03-12T00:00:00",
+      "cash": 136579.90400570005,
+      "position_value": 1197574.0,
+      "total_value": 1334153.9040057,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 64998.2442924
+    },
+    {
+      "date": "2025-03-13T00:00:00",
+      "cash": 136579.90400570005,
+      "position_value": 1203556.0,
+      "total_value": 1340135.9040057,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 64998.2442924
+    },
+    {
+      "date": "2025-03-14T00:00:00",
+      "cash": 136579.90400570005,
+      "position_value": 1207603.0,
+      "total_value": 1344182.9040057,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 64998.2442924
+    },
+    {
+      "date": "2025-03-17T00:00:00",
+      "cash": 136579.90400570005,
+      "position_value": 1210797.0,
+      "total_value": 1347376.9040057,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 64998.2442924
+    },
+    {
+      "date": "2025-03-18T00:00:00",
+      "cash": 136579.90400570005,
+      "position_value": 1210868.0,
+      "total_value": 1347447.9040057,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 64998.2442924
+    },
+    {
+      "date": "2025-03-19T00:00:00",
+      "cash": 136579.90400570005,
+      "position_value": 1216075.0,
+      "total_value": 1352654.9040057,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 64998.2442924
+    },
+    {
+      "date": "2025-03-20T00:00:00",
+      "cash": 136579.90400570005,
+      "position_value": 1206058.0,
+      "total_value": 1342637.9040057,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 64998.2442924
+    },
+    {
+      "date": "2025-03-21T00:00:00",
+      "cash": 75017.54404100004,
+      "position_value": 1249883.0,
+      "total_value": 1324900.544041,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 135340.1767476
+    },
+    {
+      "date": "2025-03-24T00:00:00",
+      "cash": 75017.54404100004,
+      "position_value": 1240707.0,
+      "total_value": 1315724.544041,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 135340.1767476
+    },
+    {
+      "date": "2025-03-25T00:00:00",
+      "cash": 75017.54404100004,
+      "position_value": 1254495.0,
+      "total_value": 1329512.544041,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 135340.1767476
+    },
+    {
+      "date": "2025-03-26T00:00:00",
+      "cash": 75017.54404100004,
+      "position_value": 1249781.0,
+      "total_value": 1324798.544041,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 135340.1767476
+    },
+    {
+      "date": "2025-03-27T00:00:00",
+      "cash": 75017.54404100004,
+      "position_value": 1246199.0,
+      "total_value": 1321216.544041,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 135340.1767476
+    },
+    {
+      "date": "2025-03-28T00:00:00",
+      "cash": 75017.54404100004,
+      "position_value": 1234667.0,
+      "total_value": 1309684.544041,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 135340.1767476
+    },
+    {
+      "date": "2025-03-31T00:00:00",
+      "cash": 75017.54404100004,
+      "position_value": 1239496.0,
+      "total_value": 1314513.544041,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 135340.1767476
+    },
+    {
+      "date": "2025-04-01T00:00:00",
+      "cash": 75017.54404100004,
+      "position_value": 1249811.0,
+      "total_value": 1324828.544041,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 135340.1767476
+    },
+    {
+      "date": "2025-04-02T00:00:00",
+      "cash": 75017.54404100004,
+      "position_value": 1251291.0,
+      "total_value": 1326308.544041,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 135340.1767476
+    },
+    {
+      "date": "2025-04-03T00:00:00",
+      "cash": 75017.54404100004,
+      "position_value": 1266578.0,
+      "total_value": 1341595.544041,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 135340.1767476
+    },
+    {
+      "date": "2025-04-07T00:00:00",
+      "cash": 75017.54404100004,
+      "position_value": 1195557.0,
+      "total_value": 1270574.544041,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 135340.1767476
+    },
+    {
+      "date": "2025-04-08T00:00:00",
+      "cash": 75017.54404100004,
+      "position_value": 1190923.0,
+      "total_value": 1265940.544041,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 135340.1767476
+    },
+    {
+      "date": "2025-04-09T00:00:00",
+      "cash": 44597.67696260003,
+      "position_value": 1218800.0,
+      "total_value": 1263397.6769626,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 177632.73485459998
+    },
+    {
+      "date": "2025-04-10T00:00:00",
+      "cash": 86890.23506960002,
+      "position_value": 1224935.0,
+      "total_value": 1311825.2350696,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 135340.1767476
+    },
+    {
+      "date": "2025-04-11T00:00:00",
+      "cash": 86890.23506960002,
+      "position_value": 1240911.0,
+      "total_value": 1327801.2350696,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 135340.1767476
+    },
+    {
+      "date": "2025-04-14T00:00:00",
+      "cash": 86890.23506960002,
+      "position_value": 1250417.0,
+      "total_value": 1337307.2350696,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 135340.1767476
+    },
+    {
+      "date": "2025-04-15T00:00:00",
+      "cash": 86890.23506960002,
+      "position_value": 1244446.0,
+      "total_value": 1331336.2350696,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 135340.1767476
+    },
+    {
+      "date": "2025-04-16T00:00:00",
+      "cash": 86890.23506960002,
+      "position_value": 1245909.0,
+      "total_value": 1332799.2350696,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 135340.1767476
+    },
+    {
+      "date": "2025-04-17T00:00:00",
+      "cash": 86890.23506960002,
+      "position_value": 1236482.0,
+      "total_value": 1323372.2350696,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 135340.1767476
+    },
+    {
+      "date": "2025-04-18T00:00:00",
+      "cash": 86890.23506960002,
+      "position_value": 1246362.0,
+      "total_value": 1333252.2350696,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 135340.1767476
+    },
+    {
+      "date": "2025-04-21T00:00:00",
+      "cash": 86890.23506960002,
+      "position_value": 1271983.0,
+      "total_value": 1358873.2350696,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 135340.1767476
+    },
+    {
+      "date": "2025-04-22T00:00:00",
+      "cash": 86890.23506960002,
+      "position_value": 1274208.0,
+      "total_value": 1361098.2350696,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 135340.1767476
+    },
+    {
+      "date": "2025-04-23T00:00:00",
+      "cash": 86890.23506960002,
+      "position_value": 1281782.0,
+      "total_value": 1368672.2350696,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 135340.1767476
+    },
+    {
+      "date": "2025-04-24T00:00:00",
+      "cash": 86890.23506960002,
+      "position_value": 1287842.0,
+      "total_value": 1374732.2350696,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 135340.1767476
+    },
+    {
+      "date": "2025-04-25T00:00:00",
+      "cash": 86890.23506960002,
+      "position_value": 1286589.0,
+      "total_value": 1373479.2350696,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 135340.1767476
+    },
+    {
+      "date": "2025-04-28T00:00:00",
+      "cash": 86890.23506960002,
+      "position_value": 1274266.0,
+      "total_value": 1361156.2350696,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 135340.1767476
+    },
+    {
+      "date": "2025-04-29T00:00:00",
+      "cash": 86890.23506960002,
+      "position_value": 1273046.0,
+      "total_value": 1359936.2350696,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 135340.1767476
+    },
+    {
+      "date": "2025-04-30T00:00:00",
+      "cash": 86890.23506960002,
+      "position_value": 1269100.0,
+      "total_value": 1355990.2350696,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 135340.1767476
+    },
+    {
+      "date": "2025-05-06T00:00:00",
+      "cash": 86890.23506960002,
+      "position_value": 1297689.0,
+      "total_value": 1384579.2350696,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 135340.1767476
+    },
+    {
+      "date": "2025-05-07T00:00:00",
+      "cash": 86890.23506960002,
+      "position_value": 1297426.0,
+      "total_value": 1384316.2350696,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 135340.1767476
+    },
+    {
+      "date": "2025-05-08T00:00:00",
+      "cash": 86890.23506960002,
+      "position_value": 1301151.0,
+      "total_value": 1388041.2350696,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 135340.1767476
+    },
+    {
+      "date": "2025-05-09T00:00:00",
+      "cash": 86890.23506960002,
+      "position_value": 1301310.0,
+      "total_value": 1388200.2350696,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 135340.1767476
+    },
+    {
+      "date": "2025-05-12T00:00:00",
+      "cash": 86890.23506960002,
+      "position_value": 1307945.0,
+      "total_value": 1394835.2350696,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 135340.1767476
+    },
+    {
+      "date": "2025-05-13T00:00:00",
+      "cash": 86890.23506960002,
+      "position_value": 1303763.0,
+      "total_value": 1390653.2350696,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 135340.1767476
+    },
+    {
+      "date": "2025-05-14T00:00:00",
+      "cash": 86890.23506960002,
+      "position_value": 1303993.0,
+      "total_value": 1390883.2350696,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 135340.1767476
+    },
+    {
+      "date": "2025-05-15T00:00:00",
+      "cash": 86890.23506960002,
+      "position_value": 1300414.0,
+      "total_value": 1387304.2350696,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 135340.1767476
+    },
+    {
+      "date": "2025-05-16T00:00:00",
+      "cash": 86890.23506960002,
+      "position_value": 1305665.0,
+      "total_value": 1392555.2350696,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 135340.1767476
+    },
+    {
+      "date": "2025-05-19T00:00:00",
+      "cash": 86890.23506960002,
+      "position_value": 1308783.0,
+      "total_value": 1395673.2350696,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 135340.1767476
+    },
+    {
+      "date": "2025-05-20T00:00:00",
+      "cash": 86890.23506960002,
+      "position_value": 1329655.0,
+      "total_value": 1416545.2350696,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 135340.1767476
+    },
+    {
+      "date": "2025-05-21T00:00:00",
+      "cash": 5971.907695500035,
+      "position_value": 1407034.0,
+      "total_value": 1413005.9076955,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 138137.5635556
+    },
+    {
+      "date": "2025-05-22T00:00:00",
+      "cash": 8769.294503500034,
+      "position_value": 1378109.0,
+      "total_value": 1386878.2945035,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 135340.1767476
+    },
+    {
+      "date": "2025-05-23T00:00:00",
+      "cash": 8769.294503500034,
+      "position_value": 1362148.0,
+      "total_value": 1370917.2945035,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 135340.1767476
+    },
+    {
+      "date": "2025-05-26T00:00:00",
+      "cash": 8769.294503500034,
+      "position_value": 1372991.0,
+      "total_value": 1381760.2945035,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 135340.1767476
+    },
+    {
+      "date": "2025-05-27T00:00:00",
+      "cash": 8769.294503500034,
+      "position_value": 1371203.0,
+      "total_value": 1379972.2945035,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 135340.1767476
+    },
+    {
+      "date": "2025-05-28T00:00:00",
+      "cash": 8769.294503500034,
+      "position_value": 1373006.0,
+      "total_value": 1381775.2945035,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 135340.1767476
+    },
+    {
+      "date": "2025-05-29T00:00:00",
+      "cash": 8769.294503500034,
+      "position_value": 1388335.0,
+      "total_value": 1397104.2945035,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 135340.1767476
+    },
+    {
+      "date": "2025-05-30T00:00:00",
+      "cash": 8769.294503500034,
+      "position_value": 1378406.0,
+      "total_value": 1387175.2945035,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 135340.1767476
+    },
+    {
+      "date": "2025-06-03T00:00:00",
+      "cash": 8769.294503500034,
+      "position_value": 1377831.0,
+      "total_value": 1386600.2945035,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 135340.1767476
+    },
+    {
+      "date": "2025-06-04T00:00:00",
+      "cash": 8769.294503500034,
+      "position_value": 1385870.0,
+      "total_value": 1394639.2945035,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 135340.1767476
+    },
+    {
+      "date": "2025-06-05T00:00:00",
+      "cash": 8769.294503500034,
+      "position_value": 1375928.0,
+      "total_value": 1384697.2945035,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 135340.1767476
+    },
+    {
+      "date": "2025-06-06T00:00:00",
+      "cash": 8769.294503500034,
+      "position_value": 1374587.0,
+      "total_value": 1383356.2945035,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 135340.1767476
+    },
+    {
+      "date": "2025-06-09T00:00:00",
+      "cash": 8769.294503500034,
+      "position_value": 1378763.0,
+      "total_value": 1387532.2945035,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 135340.1767476
+    },
+    {
+      "date": "2025-06-10T00:00:00",
+      "cash": 8769.294503500034,
+      "position_value": 1373882.0,
+      "total_value": 1382651.2945035,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 135340.1767476
+    },
+    {
+      "date": "2025-06-11T00:00:00",
+      "cash": 8769.294503500034,
+      "position_value": 1383409.0,
+      "total_value": 1392178.2945035,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 135340.1767476
+    },
+    {
+      "date": "2025-06-12T00:00:00",
+      "cash": 8769.294503500034,
+      "position_value": 1378106.0,
+      "total_value": 1386875.2945035,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 135340.1767476
+    },
+    {
+      "date": "2025-06-13T00:00:00",
+      "cash": 8769.294503500034,
+      "position_value": 1361401.0,
+      "total_value": 1370170.2945035,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 135340.1767476
+    },
+    {
+      "date": "2025-06-16T00:00:00",
+      "cash": 8769.294503500034,
+      "position_value": 1381760.0,
+      "total_value": 1390529.2945035,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 135340.1767476
+    },
+    {
+      "date": "2025-06-17T00:00:00",
+      "cash": 61487.167310300036,
+      "position_value": 1339624.0,
+      "total_value": 1401111.1673103,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 196435.4135544
+    },
+    {
+      "date": "2025-06-18T00:00:00",
+      "cash": 122582.40411710004,
+      "position_value": 1340588.0,
+      "total_value": 1463170.4041171,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 135340.1767476
+    },
+    {
+      "date": "2025-06-19T00:00:00",
+      "cash": 122582.40411710004,
+      "position_value": 1338581.0,
+      "total_value": 1461163.4041171,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 135340.1767476
+    },
+    {
+      "date": "2025-06-20T00:00:00",
+      "cash": 122582.40411710004,
+      "position_value": 1340800.0,
+      "total_value": 1463382.4041171,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 135340.1767476
+    },
+    {
+      "date": "2025-06-23T00:00:00",
+      "cash": 122582.40411710004,
+      "position_value": 1341777.0,
+      "total_value": 1464359.4041171,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 135340.1767476
+    },
+    {
+      "date": "2025-06-24T00:00:00",
+      "cash": 128916.52754750007,
+      "position_value": 1344318.0,
+      "total_value": 1473234.5275475,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 258057.4366476
+    },
+    {
+      "date": "2025-06-25T00:00:00",
+      "cash": 251633.78744750007,
+      "position_value": 1352972.0,
+      "total_value": 1604605.7874475,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 135340.1767476
+    },
+    {
+      "date": "2025-06-26T00:00:00",
+      "cash": 251633.78744750007,
+      "position_value": 1343538.0,
+      "total_value": 1595171.7874475,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 135340.1767476
+    },
+    {
+      "date": "2025-06-27T00:00:00",
+      "cash": 251633.78744750007,
+      "position_value": 1347614.0,
+      "total_value": 1599247.7874475,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 135340.1767476
+    },
+    {
+      "date": "2025-06-30T00:00:00",
+      "cash": 251633.78744750007,
+      "position_value": 1369679.0,
+      "total_value": 1621312.7874475,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 135340.1767476
+    },
+    {
+      "date": "2025-07-01T00:00:00",
+      "cash": 251633.78744750007,
+      "position_value": 1395924.0,
+      "total_value": 1647557.7874475,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 135340.1767476
+    },
+    {
+      "date": "2025-07-02T00:00:00",
+      "cash": 251633.78744750007,
+      "position_value": 1398908.0,
+      "total_value": 1650541.7874475,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 135340.1767476
+    },
+    {
+      "date": "2025-07-03T00:00:00",
+      "cash": 251633.78744750007,
+      "position_value": 1402831.0,
+      "total_value": 1654464.7874475,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 135340.1767476
+    },
+    {
+      "date": "2025-07-04T00:00:00",
+      "cash": 251633.78744750007,
+      "position_value": 1411008.0,
+      "total_value": 1662641.7874475,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 135340.1767476
+    },
+    {
+      "date": "2025-07-07T00:00:00",
+      "cash": 251633.78744750007,
+      "position_value": 1411285.0,
+      "total_value": 1662918.7874475,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 135340.1767476
+    },
+    {
+      "date": "2025-07-08T00:00:00",
+      "cash": 251633.78744750007,
+      "position_value": 1429499.0,
+      "total_value": 1681132.7874475,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 135340.1767476
+    },
+    {
+      "date": "2025-07-09T00:00:00",
+      "cash": 251633.78744750007,
+      "position_value": 1440480.0,
+      "total_value": 1692113.7874475,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 135340.1767476
+    },
+    {
+      "date": "2025-07-10T00:00:00",
+      "cash": 251633.78744750007,
+      "position_value": 1435200.0,
+      "total_value": 1686833.7874475,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 135340.1767476
+    },
+    {
+      "date": "2025-07-11T00:00:00",
+      "cash": 251633.78744750007,
+      "position_value": 1421867.0,
+      "total_value": 1673500.7874475,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 135340.1767476
+    },
+    {
+      "date": "2025-07-14T00:00:00",
+      "cash": 251633.78744750007,
+      "position_value": 1438104.0,
+      "total_value": 1689737.7874475,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 135340.1767476
+    },
+    {
+      "date": "2025-07-15T00:00:00",
+      "cash": 251633.78744750007,
+      "position_value": 1427581.0,
+      "total_value": 1679214.7874475,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 135340.1767476
+    },
+    {
+      "date": "2025-07-16T00:00:00",
+      "cash": 251633.78744750007,
+      "position_value": 1422491.0,
+      "total_value": 1674124.7874475,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 135340.1767476
+    },
+    {
+      "date": "2025-07-17T00:00:00",
+      "cash": 251633.78744750007,
+      "position_value": 1409510.0,
+      "total_value": 1661143.7874475,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 135340.1767476
+    },
+    {
+      "date": "2025-07-18T00:00:00",
+      "cash": 67928.9292846001,
+      "position_value": 1602344.0,
+      "total_value": 1670272.9292846,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 200097.9750267
+    },
+    {
+      "date": "2025-07-21T00:00:00",
+      "cash": 67928.9292846001,
+      "position_value": 1614671.0,
+      "total_value": 1682599.9292846,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 200097.9750267
+    },
+    {
+      "date": "2025-07-22T00:00:00",
+      "cash": 67928.9292846001,
+      "position_value": 1642865.0,
+      "total_value": 1710793.9292846,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 200097.9750267
+    },
+    {
+      "date": "2025-07-23T00:00:00",
+      "cash": 67928.9292846001,
+      "position_value": 1639152.0,
+      "total_value": 1707080.9292846,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 200097.9750267
+    },
+    {
+      "date": "2025-07-24T00:00:00",
+      "cash": 67928.9292846001,
+      "position_value": 1639420.0,
+      "total_value": 1707348.9292846,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 200097.9750267
+    },
+    {
+      "date": "2025-07-25T00:00:00",
+      "cash": 67928.9292846001,
+      "position_value": 1622238.0,
+      "total_value": 1690166.9292846,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 200097.9750267
+    },
+    {
+      "date": "2025-07-28T00:00:00",
+      "cash": 67928.9292846001,
+      "position_value": 1614736.0,
+      "total_value": 1682664.9292846,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 200097.9750267
+    },
+    {
+      "date": "2025-07-29T00:00:00",
+      "cash": 67928.9292846001,
+      "position_value": 1606323.0,
+      "total_value": 1674251.9292846,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 200097.9750267
+    },
+    {
+      "date": "2025-07-30T00:00:00",
+      "cash": 67928.9292846001,
+      "position_value": 1620811.0,
+      "total_value": 1688739.9292846,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 200097.9750267
+    },
+    {
+      "date": "2025-07-31T00:00:00",
+      "cash": 67928.9292846001,
+      "position_value": 1605444.0,
+      "total_value": 1673372.9292846,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 200097.9750267
+    },
+    {
+      "date": "2025-08-01T00:00:00",
+      "cash": 67928.9292846001,
+      "position_value": 1629006.0,
+      "total_value": 1696934.9292846,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 200097.9750267
+    },
+    {
+      "date": "2025-08-04T00:00:00",
+      "cash": 67928.9292846001,
+      "position_value": 1645815.0,
+      "total_value": 1713743.9292846,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 200097.9750267
+    },
+    {
+      "date": "2025-08-05T00:00:00",
+      "cash": 67928.9292846001,
+      "position_value": 1676082.0,
+      "total_value": 1744010.9292846,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 200097.9750267
+    },
+    {
+      "date": "2025-08-06T00:00:00",
+      "cash": 67928.9292846001,
+      "position_value": 1665362.0,
+      "total_value": 1733290.9292846,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 200097.9750267
+    },
+    {
+      "date": "2025-08-07T00:00:00",
+      "cash": 67928.9292846001,
+      "position_value": 1677165.0,
+      "total_value": 1745093.9292846,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 200097.9750267
+    },
+    {
+      "date": "2025-08-08T00:00:00",
+      "cash": 67928.9292846001,
+      "position_value": 1680940.0,
+      "total_value": 1748868.9292846,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 200097.9750267
+    },
+    {
+      "date": "2025-08-11T00:00:00",
+      "cash": 67928.9292846001,
+      "position_value": 1704911.0,
+      "total_value": 1772839.9292846,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 200097.9750267
+    },
+    {
+      "date": "2025-08-12T00:00:00",
+      "cash": 67928.9292846001,
+      "position_value": 1717182.0,
+      "total_value": 1785110.9292846,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 200097.9750267
+    },
+    {
+      "date": "2025-08-13T00:00:00",
+      "cash": 67928.9292846001,
+      "position_value": 1729304.0,
+      "total_value": 1797232.9292846,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 200097.9750267
+    },
+    {
+      "date": "2025-08-14T00:00:00",
+      "cash": 67928.9292846001,
+      "position_value": 1748666.0,
+      "total_value": 1816594.9292846,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 200097.9750267
+    },
+    {
+      "date": "2025-08-15T00:00:00",
+      "cash": 67928.9292846001,
+      "position_value": 1742018.0,
+      "total_value": 1809946.9292846,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 200097.9750267
+    },
+    {
+      "date": "2025-08-18T00:00:00",
+      "cash": 67928.9292846001,
+      "position_value": 1738323.0,
+      "total_value": 1806251.9292846,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 200097.9750267
+    },
+    {
+      "date": "2025-08-19T00:00:00",
+      "cash": 67928.9292846001,
+      "position_value": 1719002.0,
+      "total_value": 1786930.9292846,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 200097.9750267
+    },
+    {
+      "date": "2025-08-20T00:00:00",
+      "cash": 67928.9292846001,
+      "position_value": 1713629.0,
+      "total_value": 1781557.9292846,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 200097.9750267
+    },
+    {
+      "date": "2025-08-21T00:00:00",
+      "cash": 67928.9292846001,
+      "position_value": 1727202.0,
+      "total_value": 1795130.9292846,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 200097.9750267
+    },
+    {
+      "date": "2025-08-22T00:00:00",
+      "cash": 67928.9292846001,
+      "position_value": 1720568.0,
+      "total_value": 1788496.9292846,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 200097.9750267
+    },
+    {
+      "date": "2025-08-25T00:00:00",
+      "cash": 67928.9292846001,
+      "position_value": 1738052.0,
+      "total_value": 1805980.9292846,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 200097.9750267
+    },
+    {
+      "date": "2025-08-26T00:00:00",
+      "cash": 67928.9292846001,
+      "position_value": 1757818.0,
+      "total_value": 1825746.9292846,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 200097.9750267
+    },
+    {
+      "date": "2025-08-27T00:00:00",
+      "cash": 67928.9292846001,
+      "position_value": 1714167.0,
+      "total_value": 1782095.9292846,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 200097.9750267
+    },
+    {
+      "date": "2025-08-28T00:00:00",
+      "cash": 67928.9292846001,
+      "position_value": 1710745.0,
+      "total_value": 1778673.9292846,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 200097.9750267
+    },
+    {
+      "date": "2025-08-29T00:00:00",
+      "cash": 73442.06231500013,
+      "position_value": 1703426.0,
+      "total_value": 1776868.0623150002,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 272830.3997967
+    },
+    {
+      "date": "2025-09-01T00:00:00",
+      "cash": 73442.06231500013,
+      "position_value": 1738444.0,
+      "total_value": 1811886.0623150002,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 272830.3997967
+    },
+    {
+      "date": "2025-09-02T00:00:00",
+      "cash": 81076.18059430014,
+      "position_value": 1713558.0,
+      "total_value": 1794634.1805943002,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 349662.3792084
+    },
+    {
+      "date": "2025-09-03T00:00:00",
+      "cash": 157908.16000600014,
+      "position_value": 1695171.0,
+      "total_value": 1853079.1600060002,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 272830.3997967
+    },
+    {
+      "date": "2025-09-04T00:00:00",
+      "cash": 157908.16000600014,
+      "position_value": 1693716.0,
+      "total_value": 1851624.1600060002,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 272830.3997967
+    },
+    {
+      "date": "2025-09-05T00:00:00",
+      "cash": 157908.16000600014,
+      "position_value": 1703034.0,
+      "total_value": 1860942.1600060002,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 272830.3997967
+    },
+    {
+      "date": "2025-09-08T00:00:00",
+      "cash": 157908.16000600014,
+      "position_value": 1740687.0,
+      "total_value": 1898595.1600060002,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 272830.3997967
+    },
+    {
+      "date": "2025-09-09T00:00:00",
+      "cash": 157908.16000600014,
+      "position_value": 1742732.0,
+      "total_value": 1900640.1600060002,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 272830.3997967
+    },
+    {
+      "date": "2025-09-10T00:00:00",
+      "cash": 157908.16000600014,
+      "position_value": 1742126.0,
+      "total_value": 1900034.1600060002,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 272830.3997967
+    },
+    {
+      "date": "2025-09-11T00:00:00",
+      "cash": 157908.16000600014,
+      "position_value": 1744111.0,
+      "total_value": 1902019.1600060002,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 272830.3997967
+    },
+    {
+      "date": "2025-09-12T00:00:00",
+      "cash": 157908.16000600014,
+      "position_value": 1751893.0,
+      "total_value": 1909801.1600060002,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 272830.3997967
+    },
+    {
+      "date": "2025-09-15T00:00:00",
+      "cash": 157908.16000600014,
+      "position_value": 1764949.0,
+      "total_value": 1922857.1600060002,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 272830.3997967
+    },
+    {
+      "date": "2025-09-16T00:00:00",
+      "cash": 157908.16000600014,
+      "position_value": 1771744.0,
+      "total_value": 1929652.1600060002,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 272830.3997967
+    },
+    {
+      "date": "2025-09-17T00:00:00",
+      "cash": 157908.16000600014,
+      "position_value": 1767688.0,
+      "total_value": 1925596.1600060002,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 272830.3997967
+    },
+    {
+      "date": "2025-09-18T00:00:00",
+      "cash": 157908.16000600014,
+      "position_value": 1732028.0,
+      "total_value": 1889936.1600060002,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 272830.3997967
+    },
+    {
+      "date": "2025-09-19T00:00:00",
+      "cash": 157908.16000600014,
+      "position_value": 1730938.0,
+      "total_value": 1888846.1600060002,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 272830.3997967
+    },
+    {
+      "date": "2025-09-22T00:00:00",
+      "cash": 157908.16000600014,
+      "position_value": 1733308.0,
+      "total_value": 1891216.1600060002,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 272830.3997967
+    },
+    {
+      "date": "2025-09-23T00:00:00",
+      "cash": 157908.16000600014,
+      "position_value": 1732153.0,
+      "total_value": 1890061.1600060002,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 272830.3997967
+    },
+    {
+      "date": "2025-09-24T00:00:00",
+      "cash": 157908.16000600014,
+      "position_value": 1752592.0,
+      "total_value": 1910500.1600060002,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 272830.3997967
+    },
+    {
+      "date": "2025-09-25T00:00:00",
+      "cash": 157908.16000600014,
+      "position_value": 1756267.0,
+      "total_value": 1914175.1600060002,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 272830.3997967
+    },
+    {
+      "date": "2025-09-26T00:00:00",
+      "cash": 157908.16000600014,
+      "position_value": 1744821.0,
+      "total_value": 1902729.1600060002,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 272830.3997967
+    },
+    {
+      "date": "2025-09-29T00:00:00",
+      "cash": 157908.16000600014,
+      "position_value": 1748516.0,
+      "total_value": 1906424.1600060002,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 272830.3997967
+    },
+    {
+      "date": "2025-09-30T00:00:00",
+      "cash": 157908.16000600014,
+      "position_value": 1740738.0,
+      "total_value": 1898646.1600060002,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 272830.3997967
+    },
+    {
+      "date": "2025-10-09T00:00:00",
+      "cash": 157908.16000600014,
+      "position_value": 1744054.0,
+      "total_value": 1901962.1600060002,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 272830.3997967
+    },
+    {
+      "date": "2025-10-10T00:00:00",
+      "cash": 157908.16000600014,
+      "position_value": 1725375.0,
+      "total_value": 1883283.1600060002,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 272830.3997967
+    },
+    {
+      "date": "2025-10-13T00:00:00",
+      "cash": 157908.16000600014,
+      "position_value": 1712920.0,
+      "total_value": 1870828.1600060002,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 272830.3997967
+    },
+    {
+      "date": "2025-10-14T00:00:00",
+      "cash": 157908.16000600014,
+      "position_value": 1710129.0,
+      "total_value": 1868037.1600060002,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 272830.3997967
+    },
+    {
+      "date": "2025-10-15T00:00:00",
+      "cash": 157908.16000600014,
+      "position_value": 1720279.0,
+      "total_value": 1878187.1600060002,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 272830.3997967
+    },
+    {
+      "date": "2025-10-16T00:00:00",
+      "cash": 157908.16000600014,
+      "position_value": 1724420.0,
+      "total_value": 1882328.1600060002,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 272830.3997967
+    },
+    {
+      "date": "2025-10-17T00:00:00",
+      "cash": 157908.16000600014,
+      "position_value": 1680766.0,
+      "total_value": 1838674.1600060002,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 272830.3997967
+    },
+    {
+      "date": "2025-10-20T00:00:00",
+      "cash": 157908.16000600014,
+      "position_value": 1707884.0,
+      "total_value": 1865792.1600060002,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 272830.3997967
+    },
+    {
+      "date": "2025-10-21T00:00:00",
+      "cash": 157908.16000600014,
+      "position_value": 1731759.0,
+      "total_value": 1889667.1600060002,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 272830.3997967
+    },
+    {
+      "date": "2025-10-22T00:00:00",
+      "cash": 157908.16000600014,
+      "position_value": 1738085.0,
+      "total_value": 1895993.1600060002,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 272830.3997967
+    },
+    {
+      "date": "2025-10-23T00:00:00",
+      "cash": 157908.16000600014,
+      "position_value": 1758180.0,
+      "total_value": 1916088.1600060002,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 272830.3997967
+    },
+    {
+      "date": "2025-10-24T00:00:00",
+      "cash": 157908.16000600014,
+      "position_value": 1749902.0,
+      "total_value": 1907810.1600060002,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 272830.3997967
+    },
+    {
+      "date": "2025-10-27T00:00:00",
+      "cash": 157908.16000600014,
+      "position_value": 1747409.0,
+      "total_value": 1905317.1600060002,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 272830.3997967
+    },
+    {
+      "date": "2025-10-28T00:00:00",
+      "cash": 157908.16000600014,
+      "position_value": 1724949.0,
+      "total_value": 1882857.1600060002,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 272830.3997967
+    },
+    {
+      "date": "2025-10-29T00:00:00",
+      "cash": 157908.16000600014,
+      "position_value": 1732951.0,
+      "total_value": 1890859.1600060002,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 272830.3997967
+    },
+    {
+      "date": "2025-10-30T00:00:00",
+      "cash": 157908.16000600014,
+      "position_value": 1692609.0,
+      "total_value": 1850517.1600060002,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 272830.3997967
+    },
+    {
+      "date": "2025-10-31T00:00:00",
+      "cash": 157908.16000600014,
+      "position_value": 1716632.0,
+      "total_value": 1874540.1600060002,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 272830.3997967
+    },
+    {
+      "date": "2025-11-03T00:00:00",
+      "cash": 157908.16000600014,
+      "position_value": 1723525.0,
+      "total_value": 1881433.1600060002,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 272830.3997967
+    },
+    {
+      "date": "2025-11-04T00:00:00",
+      "cash": 157908.16000600014,
+      "position_value": 1731380.0,
+      "total_value": 1889288.1600060002,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 272830.3997967
+    },
+    {
+      "date": "2025-11-05T00:00:00",
+      "cash": 157908.16000600014,
+      "position_value": 1726917.0,
+      "total_value": 1884825.1600060002,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 272830.3997967
+    },
+    {
+      "date": "2025-11-06T00:00:00",
+      "cash": 157908.16000600014,
+      "position_value": 1740669.0,
+      "total_value": 1898577.1600060002,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 272830.3997967
+    },
+    {
+      "date": "2025-11-07T00:00:00",
+      "cash": 157908.16000600014,
+      "position_value": 1742627.0,
+      "total_value": 1900535.1600060002,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 272830.3997967
+    },
+    {
+      "date": "2025-11-10T00:00:00",
+      "cash": 157908.16000600014,
+      "position_value": 1759273.0,
+      "total_value": 1917181.1600060002,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 272830.3997967
+    },
+    {
+      "date": "2025-11-11T00:00:00",
+      "cash": 157908.16000600014,
+      "position_value": 1499967.0,
+      "total_value": 1657875.1600060002,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 272830.3997967
+    },
+    {
+      "date": "2025-11-12T00:00:00",
+      "cash": 157908.16000600014,
+      "position_value": 1766650.0,
+      "total_value": 1924558.1600060002,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 272830.3997967
+    },
+    {
+      "date": "2025-11-13T00:00:00",
+      "cash": 157908.16000600014,
+      "position_value": 1784367.0,
+      "total_value": 1942275.1600060002,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 272830.3997967
+    },
+    {
+      "date": "2025-11-14T00:00:00",
+      "cash": 157908.16000600014,
+      "position_value": 1776311.0,
+      "total_value": 1934219.1600060002,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 272830.3997967
+    },
+    {
+      "date": "2025-11-17T00:00:00",
+      "cash": 157908.16000600014,
+      "position_value": 1760072.0,
+      "total_value": 1917980.1600060002,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 272830.3997967
+    },
+    {
+      "date": "2025-11-18T00:00:00",
+      "cash": 157908.16000600014,
+      "position_value": 1719960.0,
+      "total_value": 1877868.1600060002,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 272830.3997967
+    },
+    {
+      "date": "2025-11-19T00:00:00",
+      "cash": 157908.16000600014,
+      "position_value": 1701824.0,
+      "total_value": 1859732.1600060002,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 272830.3997967
+    },
+    {
+      "date": "2025-11-20T00:00:00",
+      "cash": 157908.16000600014,
+      "position_value": 1684599.0,
+      "total_value": 1842507.1600060002,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 272830.3997967
+    },
+    {
+      "date": "2025-11-21T00:00:00",
+      "cash": 157908.16000600014,
+      "position_value": 1632135.0,
+      "total_value": 1790043.1600060002,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 272830.3997967
+    },
+    {
+      "date": "2025-11-24T00:00:00",
+      "cash": 157908.16000600014,
+      "position_value": 1649131.0,
+      "total_value": 1807039.1600060002,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 272830.3997967
+    },
+    {
+      "date": "2025-11-25T00:00:00",
+      "cash": 157908.16000600014,
+      "position_value": 1676071.0,
+      "total_value": 1833979.1600060002,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 272830.3997967
+    },
+    {
+      "date": "2025-11-26T00:00:00",
+      "cash": 157908.16000600014,
+      "position_value": 1673223.0,
+      "total_value": 1831131.1600060002,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 272830.3997967
+    },
+    {
+      "date": "2025-11-27T00:00:00",
+      "cash": 157908.16000600014,
+      "position_value": 1673874.0,
+      "total_value": 1831782.1600060002,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 272830.3997967
+    },
+    {
+      "date": "2025-11-28T00:00:00",
+      "cash": 157908.16000600014,
+      "position_value": 1677882.0,
+      "total_value": 1835790.1600060002,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 272830.3997967
+    },
+    {
+      "date": "2025-12-01T00:00:00",
+      "cash": 157908.16000600014,
+      "position_value": 1691515.0,
+      "total_value": 1849423.1600060002,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 272830.3997967
+    },
+    {
+      "date": "2025-12-02T00:00:00",
+      "cash": 157908.16000600014,
+      "position_value": 1678673.0,
+      "total_value": 1836581.1600060002,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 272830.3997967
+    },
+    {
+      "date": "2025-12-03T00:00:00",
+      "cash": 157908.16000600014,
+      "position_value": 1670510.0,
+      "total_value": 1828418.1600060002,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 272830.3997967
+    },
+    {
+      "date": "2025-12-04T00:00:00",
+      "cash": 157908.16000600014,
+      "position_value": 1652027.0,
+      "total_value": 1809935.1600060002,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 272830.3997967
+    },
+    {
+      "date": "2025-12-05T00:00:00",
+      "cash": 157908.16000600014,
+      "position_value": 1661108.0,
+      "total_value": 1819016.1600060002,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 272830.3997967
+    },
+    {
+      "date": "2025-12-08T00:00:00",
+      "cash": 157908.16000600014,
+      "position_value": 1654787.0,
+      "total_value": 1812695.1600060002,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 272830.3997967
+    },
+    {
+      "date": "2025-12-09T00:00:00",
+      "cash": 157908.16000600014,
+      "position_value": 1634032.0,
+      "total_value": 1791940.1600060002,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 272830.3997967
+    },
+    {
+      "date": "2025-12-10T00:00:00",
+      "cash": 157908.16000600014,
+      "position_value": 1643306.0,
+      "total_value": 1801214.1600060002,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 272830.3997967
+    },
+    {
+      "date": "2025-12-11T00:00:00",
+      "cash": 157908.16000600014,
+      "position_value": 1608010.0,
+      "total_value": 1765918.1600060002,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 272830.3997967
+    },
+    {
+      "date": "2025-12-12T00:00:00",
+      "cash": 157908.16000600014,
+      "position_value": 1611258.0,
+      "total_value": 1769166.1600060002,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 272830.3997967
+    },
+    {
+      "date": "2025-12-15T00:00:00",
+      "cash": 157908.16000600014,
+      "position_value": 1595490.0,
+      "total_value": 1753398.1600060002,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 272830.3997967
+    },
+    {
+      "date": "2025-12-16T00:00:00",
+      "cash": 157908.16000600014,
+      "position_value": 1573582.0,
+      "total_value": 1731490.1600060002,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 272830.3997967
+    },
+    {
+      "date": "2025-12-17T00:00:00",
+      "cash": 157908.16000600014,
+      "position_value": 1592404.0,
+      "total_value": 1750312.1600060002,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 272830.3997967
+    },
+    {
+      "date": "2025-12-18T00:00:00",
+      "cash": 157908.16000600014,
+      "position_value": 1600244.0,
+      "total_value": 1758152.1600060002,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 272830.3997967
+    },
+    {
+      "date": "2025-12-19T00:00:00",
+      "cash": 157908.16000600014,
+      "position_value": 1630590.0,
+      "total_value": 1788498.1600060002,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 272830.3997967
+    },
+    {
+      "date": "2025-12-22T00:00:00",
+      "cash": 157908.16000600014,
+      "position_value": 1636748.0,
+      "total_value": 1794656.1600060002,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 272830.3997967
+    },
+    {
+      "date": "2025-12-23T00:00:00",
+      "cash": 157908.16000600014,
+      "position_value": 1628089.0,
+      "total_value": 1785997.1600060002,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 272830.3997967
+    },
+    {
+      "date": "2025-12-24T00:00:00",
+      "cash": 157908.16000600014,
+      "position_value": 1635662.0,
+      "total_value": 1793570.1600060002,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 272830.3997967
+    },
+    {
+      "date": "2025-12-25T00:00:00",
+      "cash": 157908.16000600014,
+      "position_value": 1650436.0,
+      "total_value": 1808344.1600060002,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 272830.3997967
+    },
+    {
+      "date": "2025-12-26T00:00:00",
+      "cash": 157908.16000600014,
+      "position_value": 1644967.0,
+      "total_value": 1802875.1600060002,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 272830.3997967
+    },
+    {
+      "date": "2025-12-29T00:00:00",
+      "cash": 157908.16000600014,
+      "position_value": 1652687.0,
+      "total_value": 1810595.1600060002,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 272830.3997967
+    },
+    {
+      "date": "2025-12-30T00:00:00",
+      "cash": 157908.16000600014,
+      "position_value": 1634764.0,
+      "total_value": 1792672.1600060002,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 272830.3997967
+    },
+    {
+      "date": "2025-12-31T00:00:00",
+      "cash": 157908.16000600014,
+      "position_value": 1633217.0,
+      "total_value": 1791125.1600060002,
+      "num_positions": 15,
+      "frozen_cash": 0,
+      "pending_proceeds": 272830.3997967
+    },
+    {
+      "date": "2026-01-01T00:00:00",
+      "cash": 1794549.0234534002,
+      "position_value": 0.0,
+      "total_value": 1794549.0234534002,
+      "num_positions": 0,
+      "frozen_cash": 0,
+      "pending_proceeds": 1909471.2632441
+    }
+  ],
+  "trades": [
+    {
+      "code": "600707",
+      "entry_date": "2025-01-03",
+      "entry_price": 8.1,
+      "exit_date": "2025-01-07",
+      "exit_price": 7.66,
+      "shares": 6000,
+      "holding_days": 2,
+      "gross_pnl": -2614.56,
+      "gross_pnl_pct": -5.38,
+      "net_pnl": -2688.9,
+      "net_pnl_pct": -5.53,
+      "max_unrealized_pnl_pct": 0.0,
+      "exit_reason": "rotation_replace:002602|score_gain=13.7",
+      "buy_strategy": "少妇战法"
+    },
+    {
+      "code": "002847",
+      "entry_date": "2025-01-08",
+      "entry_price": 59.16,
+      "exit_date": "2025-02-19",
+      "exit_price": 48.56,
+      "shares": 1200,
+      "holding_days": 24,
+      "gross_pnl": -12717.25,
+      "gross_pnl_pct": -17.91,
+      "net_pnl": -12814.31,
+      "net_pnl_pct": -18.05,
+      "max_unrealized_pnl_pct": 0.98,
+      "exit_reason": "rotation_replace:603966|score_gain=16.8",
+      "buy_strategy": "少妇战法"
+    },
+    {
+      "code": "002003",
+      "entry_date": "2025-01-07",
+      "entry_price": 13.3,
+      "exit_date": "2025-02-27",
+      "exit_price": 12.41,
+      "shares": 5100,
+      "holding_days": 31,
+      "gross_pnl": -4568.12,
+      "gross_pnl_pct": -6.73,
+      "net_pnl": -4670.74,
+      "net_pnl_pct": -6.88,
+      "max_unrealized_pnl_pct": 4.34,
+      "exit_reason": "rotation_replace:002648|score_gain=13.8",
+      "buy_strategy": "少妇战法"
+    },
+    {
+      "code": "000538",
+      "entry_date": "2025-01-07",
+      "entry_price": 55.87,
+      "exit_date": "2025-02-27",
+      "exit_price": 52.93,
+      "shares": 1200,
+      "holding_days": 31,
+      "gross_pnl": -3526.55,
+      "gross_pnl_pct": -5.26,
+      "net_pnl": -3629.23,
+      "net_pnl_pct": -5.41,
+      "max_unrealized_pnl_pct": 0.0,
+      "exit_reason": "rotation_replace:603138|score_gain=12.5",
+      "buy_strategy": "少妇战法"
+    },
+    {
+      "code": "600660",
+      "entry_date": "2025-01-07",
+      "entry_price": 56.99,
+      "exit_date": "2025-02-28",
+      "exit_price": 54.24,
+      "shares": 1200,
+      "holding_days": 32,
+      "gross_pnl": -3301.46,
+      "gross_pnl_pct": -4.83,
+      "net_pnl": -3406.59,
+      "net_pnl_pct": -4.98,
+      "max_unrealized_pnl_pct": 2.87,
+      "exit_reason": "rotation_replace:000526|score_gain=14.6",
+      "buy_strategy": "少妇战法"
+    },
+    {
+      "code": "000100",
+      "entry_date": "2025-01-07",
+      "entry_price": 4.87,
+      "exit_date": "2025-03-04",
+      "exit_price": 4.7,
+      "shares": 14300,
+      "holding_days": 34,
+      "gross_pnl": -2567.85,
+      "gross_pnl_pct": -3.68,
+      "net_pnl": -2676.05,
+      "net_pnl_pct": -3.84,
+      "max_unrealized_pnl_pct": 5.23,
+      "exit_reason": "rotation_replace:002173|score_gain=16.1",
+      "buy_strategy": "少妇战法"
+    },
+    {
+      "code": "600941",
+      "entry_date": "2025-01-08",
+      "entry_price": 106.1,
+      "exit_date": "2025-03-21",
+      "exit_price": 100.62,
+      "shares": 700,
+      "holding_days": 46,
+      "gross_pnl": -3833.7,
+      "gross_pnl_pct": -5.16,
+      "net_pnl": -3947.54,
+      "net_pnl_pct": -5.31,
+      "max_unrealized_pnl_pct": 3.42,
+      "exit_reason": "rotation_replace:001208|score_gain=14.1",
+      "buy_strategy": "少妇战法"
+    },
+    {
+      "code": "600710",
+      "entry_date": "2025-01-03",
+      "entry_price": 8.97,
+      "exit_date": "2025-04-09",
+      "exit_price": 7.84,
+      "shares": 5400,
+      "holding_days": 61,
+      "gross_pnl": -6084.77,
+      "gross_pnl_pct": -12.56,
+      "net_pnl": -6154.36,
+      "net_pnl_pct": -12.7,
+      "max_unrealized_pnl_pct": 22.09,
+      "exit_reason": "rotation_replace:002170|score_gain=17.9",
+      "buy_strategy": "少妇战法"
+    },
+    {
+      "code": "603138",
+      "entry_date": "2025-02-27",
+      "entry_price": 16.77,
+      "exit_date": "2025-05-21",
+      "exit_price": 14.03,
+      "shares": 200,
+      "holding_days": 55,
+      "gross_pnl": -548.16,
+      "gross_pnl_pct": -16.35,
+      "net_pnl": -560.96,
+      "net_pnl_pct": -16.7,
+      "max_unrealized_pnl_pct": 0.0,
+      "exit_reason": "rotation_replace:603429|score_gain=13.1",
+      "buy_strategy": "少妇战法"
+    },
+    {
+      "code": "600600",
+      "entry_date": "2025-01-08",
+      "entry_price": 74.15,
+      "exit_date": "2025-06-17",
+      "exit_price": 67.97,
+      "shares": 900,
+      "holding_days": 103,
+      "gross_pnl": -5563.91,
+      "gross_pnl_pct": -8.34,
+      "net_pnl": -5663.46,
+      "net_pnl_pct": -8.48,
+      "max_unrealized_pnl_pct": 6.75,
+      "exit_reason": "rotation_replace:600229|score_gain=13.5",
+      "buy_strategy": "少妇战法"
+    },
+    {
+      "code": "001208",
+      "entry_date": "2025-03-21",
+      "entry_price": 10.72,
+      "exit_date": "2025-06-24",
+      "exit_price": 9.99,
+      "shares": 12300,
+      "holding_days": 62,
+      "gross_pnl": -8987.73,
+      "gross_pnl_pct": -6.82,
+      "net_pnl": -9187.03,
+      "net_pnl_pct": -6.96,
+      "max_unrealized_pnl_pct": 7.92,
+      "exit_reason": "rotation_replace:600792|score_gain=13.3",
+      "buy_strategy": "少妇战法"
+    },
+    {
+      "code": "600346",
+      "entry_date": "2025-01-07",
+      "entry_price": 14.6,
+      "exit_date": "2025-07-18",
+      "exit_price": 13.8,
+      "shares": 4700,
+      "holding_days": 127,
+      "gross_pnl": -3799.48,
+      "gross_pnl_pct": -5.54,
+      "net_pnl": -3904.37,
+      "net_pnl_pct": -5.69,
+      "max_unrealized_pnl_pct": 7.77,
+      "exit_reason": "rotation_replace:603126|score_gain=17.5",
+      "buy_strategy": "少妇战法"
+    },
+    {
+      "code": "600642",
+      "entry_date": "2025-01-08",
+      "entry_price": 8.52,
+      "exit_date": "2025-08-29",
+      "exit_price": 8.09,
+      "shares": 9000,
+      "holding_days": 156,
+      "gross_pnl": -3839.49,
+      "gross_pnl_pct": -5.01,
+      "net_pnl": -3957.17,
+      "net_pnl_pct": -5.16,
+      "max_unrealized_pnl_pct": 4.83,
+      "exit_reason": "rotation_replace:600775|score_gain=15.4",
+      "buy_strategy": "少妇战法"
+    },
+    {
+      "code": "600012",
+      "entry_date": "2025-01-08",
+      "entry_price": 15.52,
+      "exit_date": "2025-09-02",
+      "exit_price": 14.52,
+      "shares": 5300,
+      "holding_days": 158,
+      "gross_pnl": -5300.16,
+      "gross_pnl_pct": -6.45,
+      "net_pnl": -5424.84,
+      "net_pnl_pct": -6.6,
+      "max_unrealized_pnl_pct": 14.79,
+      "exit_reason": "rotation_replace:603324|score_gain=15.5",
+      "buy_strategy": "少妇战法"
+    },
+    {
+      "code": "002602",
+      "entry_date": "2025-01-07",
+      "entry_price": 4.75,
+      "exit_date": "2026-01-01",
+      "exit_price": 17.59,
+      "shares": 14200,
+      "holding_days": 239,
+      "gross_pnl": 182294.49,
+      "gross_pnl_pct": 270.0,
+      "net_pnl": 181949.48,
+      "net_pnl_pct": 269.4,
+      "max_unrealized_pnl_pct": 362.06,
+      "exit_reason": "End of backtest - forced liquidation",
+      "buy_strategy": "少妇战法"
+    },
+    {
+      "code": "601169",
+      "entry_date": "2025-01-07",
+      "entry_price": 5.68,
+      "exit_date": "2026-01-01",
+      "exit_price": 5.47,
+      "shares": 11900,
+      "holding_days": 240,
+      "gross_pnl": -2393.68,
+      "gross_pnl_pct": -3.54,
+      "net_pnl": -2498.64,
+      "net_pnl_pct": -3.7,
+      "max_unrealized_pnl_pct": 24.74,
+      "exit_reason": "End of backtest - forced liquidation",
+      "buy_strategy": "少妇战法"
+    },
+    {
+      "code": "601939",
+      "entry_date": "2025-01-07",
+      "entry_price": 7.93,
+      "exit_date": "2026-01-01",
+      "exit_price": 9.21,
+      "shares": 8700,
+      "holding_days": 240,
+      "gross_pnl": 11160.88,
+      "gross_pnl_pct": 16.18,
+      "net_pnl": 11036.02,
+      "net_pnl_pct": 16.0,
+      "max_unrealized_pnl_pct": 21.97,
+      "exit_reason": "End of backtest - forced liquidation",
+      "buy_strategy": "少妇战法"
+    },
+    {
+      "code": "600153",
+      "entry_date": "2025-01-08",
+      "entry_price": 9.28,
+      "exit_date": "2026-01-01",
+      "exit_price": 9.32,
+      "shares": 8000,
+      "holding_days": 239,
+      "gross_pnl": 331.2,
+      "gross_pnl_pct": 0.45,
+      "net_pnl": 211.99,
+      "net_pnl_pct": 0.29,
+      "max_unrealized_pnl_pct": 25.98,
+      "exit_reason": "End of backtest - forced liquidation",
+      "buy_strategy": "少妇战法"
+    },
+    {
+      "code": "603966",
+      "entry_date": "2025-02-19",
+      "entry_price": 8.06,
+      "exit_date": "2026-01-01",
+      "exit_price": 11.92,
+      "shares": 400,
+      "holding_days": 215,
+      "gross_pnl": 1544.01,
+      "gross_pnl_pct": 47.9,
+      "net_pnl": 1529.24,
+      "net_pnl_pct": 47.37,
+      "max_unrealized_pnl_pct": 59.59,
+      "exit_reason": "End of backtest - forced liquidation",
+      "buy_strategy": "少妇战法"
+    },
+    {
+      "code": "002648",
+      "entry_date": "2025-02-27",
+      "entry_price": 20.17,
+      "exit_date": "2026-01-01",
+      "exit_price": 17.61,
+      "shares": 5600,
+      "holding_days": 209,
+      "gross_pnl": -14323.57,
+      "gross_pnl_pct": -12.68,
+      "net_pnl": -14485.67,
+      "net_pnl_pct": -12.82,
+      "max_unrealized_pnl_pct": 10.66,
+      "exit_reason": "End of backtest - forced liquidation",
+      "buy_strategy": "少妇战法"
+    },
+    {
+      "code": "000526",
+      "entry_date": "2025-02-28",
+      "entry_price": 48.91,
+      "exit_date": "2026-01-01",
+      "exit_price": 38.61,
+      "shares": 5000,
+      "holding_days": 208,
+      "gross_pnl": -51487.55,
+      "gross_pnl_pct": -21.05,
+      "net_pnl": -51811.89,
+      "net_pnl_pct": -21.18,
+      "max_unrealized_pnl_pct": 16.4,
+      "exit_reason": "End of backtest - forced liquidation",
+      "buy_strategy": "少妇战法"
+    },
+    {
+      "code": "002173",
+      "entry_date": "2025-03-04",
+      "entry_price": 9.43,
+      "exit_date": "2026-01-01",
+      "exit_price": 21.78,
+      "shares": 7600,
+      "holding_days": 206,
+      "gross_pnl": 93850.73,
+      "gross_pnl_pct": 130.96,
+      "net_pnl": 93614.06,
+      "net_pnl_pct": 130.59,
+      "max_unrealized_pnl_pct": 183.16,
+      "exit_reason": "End of backtest - forced liquidation",
+      "buy_strategy": "少妇战法"
+    },
+    {
+      "code": "002170",
+      "entry_date": "2025-04-09",
+      "entry_price": 9.32,
+      "exit_date": "2026-01-01",
+      "exit_price": 12.13,
+      "shares": 7800,
+      "holding_days": 181,
+      "gross_pnl": 21906.69,
+      "gross_pnl_pct": 30.14,
+      "net_pnl": 21761.91,
+      "net_pnl_pct": 29.93,
+      "max_unrealized_pnl_pct": 45.5,
+      "exit_reason": "End of backtest - forced liquidation",
+      "buy_strategy": "少妇战法"
+    },
+    {
+      "code": "603429",
+      "entry_date": "2025-05-21",
+      "entry_price": 9.0,
+      "exit_date": "2026-01-01",
+      "exit_price": 9.91,
+      "shares": 9300,
+      "holding_days": 154,
+      "gross_pnl": 8473.14,
+      "gross_pnl_pct": 10.12,
+      "net_pnl": 8328.22,
+      "net_pnl_pct": 9.95,
+      "max_unrealized_pnl_pct": 54.8,
+      "exit_reason": "End of backtest - forced liquidation",
+      "buy_strategy": "少妇战法"
+    },
+    {
+      "code": "600229",
+      "entry_date": "2025-06-17",
+      "entry_price": 6.98,
+      "exit_date": "2026-01-01",
+      "exit_price": 6.28,
+      "shares": 1200,
+      "holding_days": 136,
+      "gross_pnl": -831.91,
+      "gross_pnl_pct": -9.94,
+      "net_pnl": -849.45,
+      "net_pnl_pct": -10.14,
+      "max_unrealized_pnl_pct": 6.21,
+      "exit_reason": "End of backtest - forced liquidation",
+      "buy_strategy": "少妇战法"
+    },
+    {
+      "code": "600792",
+      "entry_date": "2025-06-24",
+      "entry_price": 3.48,
+      "exit_date": "2026-01-01",
+      "exit_price": 3.92,
+      "shares": 33400,
+      "holding_days": 131,
+      "gross_pnl": 14448.84,
+      "gross_pnl_pct": 12.42,
+      "net_pnl": 14243.9,
+      "net_pnl_pct": 12.24,
+      "max_unrealized_pnl_pct": 63.92,
+      "exit_reason": "End of backtest - forced liquidation",
+      "buy_strategy": "少妇战法"
+    },
+    {
+      "code": "603126",
+      "entry_date": "2025-07-18",
+      "entry_price": 6.54,
+      "exit_date": "2026-01-01",
+      "exit_price": 6.67,
+      "shares": 38000,
+      "holding_days": 113,
+      "gross_pnl": 5198.02,
+      "gross_pnl_pct": 2.09,
+      "net_pnl": 4793.84,
+      "net_pnl_pct": 1.93,
+      "max_unrealized_pnl_pct": 18.56,
+      "exit_reason": "End of backtest - forced liquidation",
+      "buy_strategy": "少妇战法"
+    },
+    {
+      "code": "600775",
+      "entry_date": "2025-08-29",
+      "entry_price": 12.92,
+      "exit_date": "2026-01-01",
+      "exit_price": 12.19,
+      "shares": 5200,
+      "holding_days": 83,
+      "gross_pnl": -3822.57,
+      "gross_pnl_pct": -5.69,
+      "net_pnl": -3925.12,
+      "net_pnl_pct": -5.84,
+      "max_unrealized_pnl_pct": 2.53,
+      "exit_reason": "End of backtest - forced liquidation",
+      "buy_strategy": "少妇战法"
+    },
+    {
+      "code": "603324",
+      "entry_date": "2025-09-02",
+      "entry_price": 26.61,
+      "exit_date": "2026-01-01",
+      "exit_price": 25.03,
+      "shares": 2600,
+      "holding_days": 81,
+      "gross_pnl": -4086.26,
+      "gross_pnl_pct": -5.91,
+      "net_pnl": -4191.64,
+      "net_pnl_pct": -6.06,
+      "max_unrealized_pnl_pct": 6.78,
+      "exit_reason": "End of backtest - forced liquidation",
+      "buy_strategy": "少妇战法"
+    }
+  ],
+  "final_value": 1794549.0234534002,
+  "total_return": 0.7945490234534003,
+  "num_trades": 29,
+  "num_positions": 0,
+  "rotation_summary": {
+    "total_rotations": 17,
+    "avg_exit_pnl_pct": -7.8,
+    "avg_score_improvement": 14.43,
+    "rotation_log": [
+      {
+        "date": "2025-01-06",
+        "exit_code": "600707",
+        "exit_entry_date": "2025-01-03",
+        "exit_pnl_pct": -5.44,
+        "exit_entry_score": 40.63,
+        "entry_code": "002602",
+        "entry_score": 54.31,
+        "score_improvement": 13.68,
+        "score_ratio": 1.337,
+        "sell_shares": 6000,
+        "buy_shares": 14200
+      },
+      {
+        "date": "2025-02-18",
+        "exit_code": "002847",
+        "exit_entry_date": "2025-01-08",
+        "exit_pnl_pct": -17.03,
+        "exit_entry_score": 49.28,
+        "entry_code": "603966",
+        "entry_score": 66.07,
+        "score_improvement": 16.79,
+        "score_ratio": 1.341,
+        "sell_shares": 1200,
+        "buy_shares": 400
+      },
+      {
+        "date": "2025-02-21",
+        "exit_code": "002003",
+        "exit_entry_date": "2025-01-07",
+        "exit_pnl_pct": -5.31,
+        "exit_entry_score": 45.26,
+        "entry_code": "000686",
+        "entry_score": 58.17,
+        "score_improvement": 12.9,
+        "score_ratio": 1.285,
+        "sell_shares": 5100,
+        "buy_shares": 14200
+      },
+      {
+        "date": "2025-02-26",
+        "exit_code": "002003",
+        "exit_entry_date": "2025-01-07",
+        "exit_pnl_pct": -7.49,
+        "exit_entry_score": 45.26,
+        "entry_code": "002648",
+        "entry_score": 59.03,
+        "score_improvement": 13.77,
+        "score_ratio": 1.304,
+        "sell_shares": 5100,
+        "buy_shares": 5600
+      },
+      {
+        "date": "2025-02-26",
+        "exit_code": "000538",
+        "exit_entry_date": "2025-01-07",
+        "exit_pnl_pct": -5.18,
+        "exit_entry_score": 42.33,
+        "entry_code": "603138",
+        "entry_score": 54.79,
+        "score_improvement": 12.45,
+        "score_ratio": 1.294,
+        "sell_shares": 1200,
+        "buy_shares": 200
+      },
+      {
+        "date": "2025-02-27",
+        "exit_code": "600660",
+        "exit_entry_date": "2025-01-07",
+        "exit_pnl_pct": -5.11,
+        "exit_entry_score": 42.11,
+        "entry_code": "000526",
+        "entry_score": 56.67,
+        "score_improvement": 14.56,
+        "score_ratio": 1.346,
+        "sell_shares": 1200,
+        "buy_shares": 5000
+      },
+      {
+        "date": "2025-03-03",
+        "exit_code": "000100",
+        "exit_entry_date": "2025-01-07",
+        "exit_pnl_pct": -5.26,
+        "exit_entry_score": 42.07,
+        "entry_code": "002173",
+        "entry_score": 58.16,
+        "score_improvement": 16.09,
+        "score_ratio": 1.383,
+        "sell_shares": 14300,
+        "buy_shares": 7600
+      },
+      {
+        "date": "2025-03-20",
+        "exit_code": "600941",
+        "exit_entry_date": "2025-01-08",
+        "exit_pnl_pct": -5.19,
+        "exit_entry_score": 41.66,
+        "entry_code": "001208",
+        "entry_score": 55.77,
+        "score_improvement": 14.11,
+        "score_ratio": 1.339,
+        "sell_shares": 700,
+        "buy_shares": 12300
+      },
+      {
+        "date": "2025-04-08",
+        "exit_code": "600710",
+        "exit_entry_date": "2025-01-03",
+        "exit_pnl_pct": -10.16,
+        "exit_entry_score": 46.35,
+        "entry_code": "002170",
+        "entry_score": 64.2,
+        "score_improvement": 17.85,
+        "score_ratio": 1.385,
+        "sell_shares": 5400,
+        "buy_shares": 7800
+      },
+      {
+        "date": "2025-05-20",
+        "exit_code": "603138",
+        "exit_entry_date": "2025-02-27",
+        "exit_pnl_pct": -16.33,
+        "exit_entry_score": 54.79,
+        "entry_code": "603429",
+        "entry_score": 67.86,
+        "score_improvement": 13.07,
+        "score_ratio": 1.239,
+        "sell_shares": 200,
+        "buy_shares": 9300
+      },
+      {
+        "date": "2025-06-16",
+        "exit_code": "600600",
+        "exit_entry_date": "2025-01-08",
+        "exit_pnl_pct": -8.29,
+        "exit_entry_score": 52.42,
+        "entry_code": "600229",
+        "entry_score": 65.88,
+        "score_improvement": 13.46,
+        "score_ratio": 1.257,
+        "sell_shares": 900,
+        "buy_shares": 1200
+      },
+      {
+        "date": "2025-06-23",
+        "exit_code": "001208",
+        "exit_entry_date": "2025-03-21",
+        "exit_pnl_pct": -6.38,
+        "exit_entry_score": 55.77,
+        "entry_code": "600792",
+        "entry_score": 69.04,
+        "score_improvement": 13.27,
+        "score_ratio": 1.238,
+        "sell_shares": 12300,
+        "buy_shares": 33400
+      },
+      {
+        "date": "2025-07-17",
+        "exit_code": "600346",
+        "exit_entry_date": "2025-01-07",
+        "exit_pnl_pct": -5.47,
+        "exit_entry_score": 46.05,
+        "entry_code": "603126",
+        "entry_score": 63.57,
+        "score_improvement": 17.52,
+        "score_ratio": 1.381,
+        "sell_shares": 4700,
+        "buy_shares": 38000
+      },
+      {
+        "date": "2025-07-18",
+        "exit_code": "002648",
+        "exit_entry_date": "2025-02-27",
+        "exit_pnl_pct": -12.67,
+        "exit_entry_score": 59.03,
+        "entry_code": "002159",
+        "entry_score": 72.08,
+        "score_improvement": 13.05,
+        "score_ratio": 1.221,
+        "sell_shares": 5600,
+        "buy_shares": 8400
+      },
+      {
+        "date": "2025-08-28",
+        "exit_code": "600642",
+        "exit_entry_date": "2025-01-08",
+        "exit_pnl_pct": -5.18,
+        "exit_entry_score": 43.4,
+        "entry_code": "600775",
+        "entry_score": 58.78,
+        "score_improvement": 15.39,
+        "score_ratio": 1.355,
+        "sell_shares": 9000,
+        "buy_shares": 5200
+      },
+      {
+        "date": "2025-08-29",
+        "exit_code": "600012",
+        "exit_entry_date": "2025-01-08",
+        "exit_pnl_pct": -5.99,
+        "exit_entry_score": 41.29,
+        "entry_code": "601696",
+        "entry_score": 53.22,
+        "score_improvement": 11.93,
+        "score_ratio": 1.289,
+        "sell_shares": 5300,
+        "buy_shares": 8800
+      },
+      {
+        "date": "2025-09-01",
+        "exit_code": "600012",
+        "exit_entry_date": "2025-01-08",
+        "exit_pnl_pct": -6.12,
+        "exit_entry_score": 41.29,
+        "entry_code": "603324",
+        "entry_score": 56.78,
+        "score_improvement": 15.49,
+        "score_ratio": 1.375,
+        "sell_shares": 5300,
+        "buy_shares": 2600
+      }
+    ]
+  },
+  "performance": {
+    "returns": {
+      "total_return": 0.7945490234534003,
+      "total_return_pct": 79.45490234534003,
+      "annualized_return": 0.7981562473092016,
+      "annualized_return_pct": 79.81562473092016,
+      "final_value": 1794549.0234534002,
+      "total_profit": 794549.0234534002,
+      "realized_pnl": 191020.69999999995,
+      "realized_pnl_pct": 19.102069999999998,
+      "unrealized_pnl": 603528.3234534003,
+      "unrealized_pnl_pct": 60.352832345340026,
+      "trading_days": 244,
+      "calendar_days": 364,
+      "monthly_returns": {
+        "2025-01": 0.038788369536900076,
+        "2025-02": 0.20627063285306818,
+        "2025-03": 0.06704457969649825,
+        "2025-04": 0.02352130105345578,
+        "2025-05": 0.0018749807653799994,
+        "2025-06": 0.16927191914959427,
+        "2025-07": 0.01566873224950396,
+        "2025-08": 0.047104418472957384,
+        "2025-09": 0.04788385952930662,
+        "2025-10": -0.01441774214893607,
+        "2025-11": -0.024259697857060433,
+        "2025-12": -0.031522261243776606,
+        "2026-01": 0.0
+      }
+    },
+    "risk_adjusted": {
+      "sharpe_ratio": 1.9904217574753442,
+      "sortino_ratio": 2.715092217089489,
+      "calmar_ratio": 5.667013495043673,
+      "mean_daily_return_pct": 0.2600406026078961,
+      "std_daily_return_pct": 1.978994823775877,
+      "downside_deviation_pct": 1.4507921058376192
+    },
+    "drawdown": {
+      "max_drawdown": -271777.0,
+      "max_drawdown_pct": -14.08424822011211,
+      "max_drawdown_date": "2025-11-11 00:00:00",
+      "peak_date": "2025-09-16 00:00:00",
+      "max_drawdown_duration_days": 35,
+      "avg_drawdown_duration_days": 8.80952380952381,
+      "num_drawdown_periods": 21
+    },
+    "trade_stats": {
+      "total_trades": 29,
+      "winning_trades": 9,
+      "losing_trades": 20,
+      "breakeven_trades": 0,
+      "win_rate": 0.3103448275862069,
+      "win_rate_pct": 31.03448275862069,
+      "avg_win": 37496.51777777778,
+      "avg_loss": -7322.398000000001,
+      "avg_win_pct": 57.52222222222221,
+      "avg_loss_pct": -8.6015,
+      "profit_factor": 2.3043588999122964,
+      "gross_profit": 337468.66000000003,
+      "gross_loss": -146447.96000000002,
+      "avg_holding_days": 124.03448275862068,
+      "best_trade_pct": 269.4,
+      "worst_trade_pct": -21.18
+    },
+    "distributions": {
+      "exit_reasons": {
+        "End of backtest - forced liquidation": 15,
+        "rotation_replace:603966|score_gain=16.8": 1,
+        "rotation_replace:002602|score_gain=13.7": 1,
+        "rotation_replace:603138|score_gain=12.5": 1,
+        "rotation_replace:000526|score_gain=14.6": 1,
+        "rotation_replace:002173|score_gain=16.1": 1,
+        "rotation_replace:002648|score_gain=13.8": 1,
+        "rotation_replace:001208|score_gain=14.1": 1,
+        "rotation_replace:002170|score_gain=17.9": 1,
+        "rotation_replace:600229|score_gain=13.5": 1,
+        "rotation_replace:603429|score_gain=13.1": 1,
+        "rotation_replace:600792|score_gain=13.3": 1,
+        "rotation_replace:603126|score_gain=17.5": 1,
+        "rotation_replace:600775|score_gain=15.4": 1,
+        "rotation_replace:603324|score_gain=15.5": 1
+      },
+      "buy_strategies": {
+        "少妇战法": 29
+      },
+      "returns_histogram": {
+        "-10% to -5%": 11,
+        "-20% to -10%": 5,
+        ">20%": 4,
+        "-5% to 0%": 3,
+        "10% to 20%": 2,
+        "0% to 5%": 2,
+        "<-20%": 1,
+        "5% to 10%": 1
+      },
+      "holding_period_histogram": {
+        ">60d": 21,
+        "31-60d": 6,
+        "21-30d": 1,
+        "0-5d": 1,
+        "6-10d": 0,
+        "11-20d": 0
+      }
+    },
+    "summary": {
+      "initial_capital": 1000000,
+      "final_value": 1794549.0234534002,
+      "total_return_pct": 79.45490234534003,
+      "annualized_return_pct": 79.81562473092016,
+      "sharpe_ratio": 1.9904217574753442,
+      "sortino_ratio": 2.715092217089489,
+      "calmar_ratio": 5.667013495043673,
+      "max_drawdown_pct": -14.08424822011211,
+      "total_trades": 29,
+      "win_rate_pct": 31.03448275862069,
+      "profit_factor": 2.3043588999122964,
+      "avg_holding_days": 124.03448275862068
+    }
+  },
+  "metadata": {
+    "start_date": "2025-01-01",
+    "end_date": "2025-12-31",
+    "initial_capital": 1000000,
+    "max_positions": 20,
+    "position_sizing": "equal_weight",
+    "sell_strategy": "conservative_trailing",
+    "commission_rate": 0.0003,
+    "stamp_tax_rate": 0.001,
+    "slippage_rate": 0.001,
+    "use_indicator_db": true,
+    "score_filter_enabled": true,
+    "score_percentile_threshold": 60.0,
+    "rotation_enabled": true,
+    "num_stocks": 2844,
+    "num_buy_selectors": 1,
+    "run_timestamp": "2026-02-27T15:27:29.170067"
+  }
+}

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { useMultipleBacktests } from "@/frontend/lib/hooks";
+import { useMultipleBacktests } from "@/lib/hooks";
 import {
   LineChart,
   Line,
@@ -13,7 +13,7 @@ import {
   Legend,
   ReferenceLine,
 } from "recharts";
-import type { BacktestSummary } from "@/frontend/lib/api";
+import type { BacktestSummary } from "@/lib/api";
 
 interface MultiStrategyComparisonProps {
   backtests: BacktestSummary[];

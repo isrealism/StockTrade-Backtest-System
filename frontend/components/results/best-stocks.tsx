@@ -1,8 +1,8 @@
 "use client";
 
 import { useMemo } from "react";
-import { cn } from "@/frontend/lib/utils";
-import { formatNumber, formatPercent } from "@/frontend/lib/utils";
+import { cn } from "@/lib/utils";
+import { formatNumber, formatPercent } from "@/lib/utils";
 import { TrendingUp, TrendingDown } from "lucide-react";
 
 interface BestStocksProps {

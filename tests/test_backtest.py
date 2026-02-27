@@ -51,10 +51,10 @@ def main():
     print("="*80)
 
     # Configuration
-    data_dir = "./data"
-    buy_config_path = "./configs.json"
+    data_dir = "./data/kline"
+    buy_config_path = "./configs/buy_selectors.json"
     start_date = "2025-01-01"
-    end_date = "2025-01-10"
+    end_date = "2025-01-30"
     initial_capital = 1000000
 
     # ============ 指定策略名称 ============
@@ -75,7 +75,9 @@ def main():
         end_date=end_date,
         initial_capital=initial_capital,
         max_positions=20,
-        position_sizing="equal_weight"
+        position_sizing="equal_weight",
+        score_filter_enabled=True,
+        rotation_enabled=True
     )
 
     # Load data (all stocks)

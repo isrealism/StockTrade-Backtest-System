@@ -6,7 +6,7 @@ import {
   DialogContent,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { getKLineData, type KLineDataPoint } from "@/frontend/lib/api";
+import { getKLineData, type KLineDataPoint } from "@/lib/api";
 import { Loader2 } from "lucide-react";
 
 interface Trade {

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useRankings } from "@/frontend/lib/hooks";
+import { useRankings } from "@/lib/hooks";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -11,7 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { cn, formatPercent, formatNumber, formatDate } from "@/frontend/lib/utils";
+import { cn, formatPercent, formatNumber, formatDate } from "@/lib/utils";
 import { Trophy, Medal, Loader2, BarChart3, ExternalLink } from "lucide-react";
 import Link from "next/link";
 

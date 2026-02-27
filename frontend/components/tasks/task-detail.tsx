@@ -5,9 +5,9 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { useBacktest } from "@/frontend/lib/hooks";
-import { cancelBacktest } from "@/frontend/lib/api";
-import { cn, formatDate, formatPercent, formatNumber } from "@/frontend/lib/utils";
+import { useBacktest } from "@/lib/hooks";
+import { cancelBacktest } from "@/lib/api";
+import { cn, formatDate, formatPercent, formatNumber } from "@/lib/utils";
 import {
   Square,
   ExternalLink,
