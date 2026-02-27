@@ -34,8 +34,7 @@ class SellStrategy(ABC):
         position: Position,
         current_date: datetime,
         current_data: pd.Series,
-        hist_data: pd.DataFrame,
-        indicators: Dict[str, Any] = None
+        hist_data: pd.DataFrame
     ) -> Tuple[bool, str]:
         """
         Determine if position should be sold.
@@ -47,7 +46,6 @@ class SellStrategy(ABC):
             current_date: Current date
             current_data: Current day's OHLCV data
             hist_data: Historical data up to current_date (inclusive)
-            indicators: Precomputed indicators for current date (optional)
 
         Returns:
             (should_sell, reason) tuple
@@ -87,8 +85,7 @@ class CompositeSellStrategy(SellStrategy):
         position: Position,
         current_date: datetime,
         current_data: pd.Series,
-        hist_data: pd.DataFrame,
-        indicators: Dict[str, Any] = None
+        hist_data: pd.DataFrame
     ) -> Tuple[bool, str]:
         """
         Check all strategies and combine results.
@@ -98,7 +95,6 @@ class CompositeSellStrategy(SellStrategy):
             current_date: Current date
             current_data: Current day's data
             hist_data: Historical data up to current_date
-            indicators: Precomputed indicators
 
         Returns:
             (should_sell, reason) tuple
@@ -108,7 +104,7 @@ class CompositeSellStrategy(SellStrategy):
         for strategy in self.strategies:
             try:
                 should_sell, reason = strategy.should_sell(
-                    position, current_date, current_data, hist_data, indicators
+                    position, current_date, current_data, hist_data
                 )
                 results.append((should_sell, reason, strategy.get_name()))
             except Exception as e:
@@ -149,8 +145,7 @@ class SimpleHoldStrategy(SellStrategy):
         position: Position,
         current_date: datetime,
         current_data: pd.Series,
-        hist_data: pd.DataFrame,
-        indicators: Dict[str, Any] = None
+        hist_data: pd.DataFrame
     ) -> Tuple[bool, str]:
         """Never sell."""
         return False, ""
@@ -258,6 +253,7 @@ def _import_strategy_class(class_name: str):
         'FixedProfitTargetStrategy': 'backtest.sell_strategies.profit_targets',
         'MultipleRExitStrategy': 'backtest.sell_strategies.profit_targets',
         'TimedExitStrategy': 'backtest.sell_strategies.time_based',
+        'EarlyExitStrategy': 'backtest.sell_strategies.time_based',
         'KDJOverboughtExitStrategy': 'backtest.sell_strategies.indicator_exits',
         'BBIReversalExitStrategy': 'backtest.sell_strategies.indicator_exits',
         'ZXLinesCrossDownExitStrategy': 'backtest.sell_strategies.indicator_exits',
