@@ -315,6 +315,10 @@ class PortfolioManager:
         if not self.settlement_tracker.can_sell_position(code, signal_date):
             return None
 
+        for o in self.pending_orders:
+            if o.code == code and o.action == OrderAction.SELL:
+                return None  # 已有卖单，不再重复生成
+
         position = self.positions[code]
 
         # FIX-3: 同样用下一个真实交易日
@@ -475,9 +479,12 @@ class PortfolioManager:
 
     def _execute_sell(self, order: Order, execution_date: datetime, current_data: pd.Series):
         """Execute sell order and close position.
-
-        FIX-1: 删除 add_pending_proceeds 调用，卖出收益只通过 self.cash += 计入一次。
         """
+        if order.code not in self.positions:
+            print(f"WARNING: _execute_sell called for {order.code} but position not found. Skipping.")
+            order.fail()
+            return
+
         position = self.positions[order.code]
 
         max_unrealized_pnl_pct = (
