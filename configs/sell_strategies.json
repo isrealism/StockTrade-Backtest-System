@@ -9,6 +9,14 @@
       "combination_logic": "ANY",
       "strategies": [
         {
+          "class": "EarlyExitStrategy",
+          "params": {
+            "window_days": 3,
+            "lower_bound": -0.02,
+            "upper_bound": 0.03
+          }
+        },
+        {
           "class": "PercentageTrailingStopStrategy",
           "params": {
             "trailing_pct": 0.08,
@@ -36,6 +44,14 @@
       "combination_logic": "ANY",
       "strategies": [
         {
+          "class": "EarlyExitStrategy",
+          "params": {
+            "window_days": 3,
+            "lower_bound": -0.02,
+            "upper_bound": 0.03
+          }
+        },
+        {
           "class": "ATRTrailingStopStrategy",
           "params": {
             "atr_period": 14,
@@ -62,6 +78,14 @@
       "name": "indicator_based",
       "combination_logic": "ANY",
       "strategies": [
+        {
+          "class": "EarlyExitStrategy",
+          "params": {
+            "window_days": 3,
+            "lower_bound": -0.02,
+            "upper_bound": 0.03
+          }
+        },
         {
           "class": "KDJOverboughtExitStrategy",
           "params": {
@@ -96,6 +120,14 @@
       "combination_logic": "ANY",
       "strategies": [
         {
+          "class": "EarlyExitStrategy",
+          "params": {
+            "window_days": 3,
+            "lower_bound": -0.02,
+            "upper_bound": 0.03
+          }
+        },
+        {
           "class": "AdaptiveVolatilityExitStrategy",
           "params": {
             "volatility_period": 20,
@@ -128,6 +160,14 @@
       "combination_logic": "ANY",
       "strategies": [
         {
+          "class": "EarlyExitStrategy",
+          "params": {
+            "window_days": 3,
+            "lower_bound": -0.02,
+            "upper_bound": 0.03
+          }
+        },
+        {
           "class": "ChandelierStopStrategy",
           "params": {
             "lookback_period": 22,
@@ -157,6 +197,14 @@
       "name": "zx_discipline",
       "combination_logic": "ANY",
       "strategies": [
+        {
+          "class": "EarlyExitStrategy",
+          "params": {
+            "window_days": 3,
+            "lower_bound": -0.02,
+            "upper_bound": 0.03
+          }
+        },
         {
           "class": "ZXLinesCrossDownExitStrategy",
           "params": {}
@@ -189,6 +237,14 @@
       "combination_logic": "ANY",
       "strategies": [
         {
+          "class": "EarlyExitStrategy",
+          "params": {
+            "window_days": 3,
+            "lower_bound": -0.02,
+            "upper_bound": 0.03
+          }
+        },
+        {
           "class": "PercentageTrailingStopStrategy",
           "params": {
             "trailing_pct": 0.08
@@ -214,6 +270,7 @@
   "_usage_notes": [
     "Select a strategy by name when running backtest",
     "Example: python scripts/run_backtest.py --sell-strategy conservative_trailing",
-    "You can also define custom strategies in code or JSON"
+    "You can also define custom strategies in code or JSON",
+    "EarlyExitStrategy: sells within window_days if return is between lower_bound and upper_bound (default: 3d, -2%~+3%)"
   ]
 }

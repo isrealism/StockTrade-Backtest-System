@@ -31,7 +31,7 @@ from backtest.engine import BacktestEngine
 from backtest.performance import PerformanceAnalyzer
 
 DATA_DIR = ROOT / "data"
-CONFIGS_PATH = ROOT / "configs.json"
+CONFIGS_PATH = ROOT / "configs" / "buy_selectors.json"
 SELL_STRATEGIES_PATH = ROOT / "configs" / "sell_strategies.json"
 DB_PATH = ROOT / "backend" / "backtest_results.db"
 FRONTEND_DIR = ROOT / "frontend"
@@ -184,28 +184,27 @@ class JobManager:
         cancel_event = threading.Event()
 
         def run_job():
-            db_execute(
-                "UPDATE backtests SET status=?, started_at=?, progress=? WHERE id=?",
-                ("RUNNING", _now_iso(), 0.0, job_id),
-            )
-
-            def log_callback(message: str) -> None:
-                db_execute(
-                    "INSERT INTO logs (backtest_id, ts, message) VALUES (?, ?, ?)",
-                    (job_id, _now_iso(), message),
-                )
-
-            def progress_callback(done: int, total: int, date: datetime) -> None:
-                progress = 0.0 if total == 0 else (done / total) * 100.0
-                db_execute(
-                    "UPDATE backtests SET progress=? WHERE id=?",
-                    (round(progress, 2), job_id),
-                )
-
-            def cancel_check() -> bool:
-                return cancel_event.is_set()
-
             try:
+                db_execute(
+                    "UPDATE backtests SET status=?, started_at=?, progress=? WHERE id=?",
+                    ("RUNNING", _now_iso(), 0.0, job_id),
+                )
+
+                def log_callback(message: str) -> None:
+                    db_execute(
+                        "INSERT INTO logs (backtest_id, ts, message) VALUES (?, ?, ?)",
+                        (job_id, _now_iso(), message),
+                    )
+
+                def progress_callback(done: int, total: int, date: datetime) -> None:
+                    progress = 0.0 if total == 0 else (done / total) * 100.0
+                    db_execute(
+                        "UPDATE backtests SET progress=? WHERE id=?",
+                        (round(progress, 2), job_id),
+                    )
+
+                def cancel_check() -> bool:
+                    return cancel_event.is_set()
                 buy_config = payload.get("buy_config")
                 if buy_config is None:
                     buy_config = load_buy_config_default()
@@ -266,10 +265,14 @@ class JobManager:
                 equity_df = pd.DataFrame(results.get("equity_curve", []))
                 trades_df = pd.DataFrame(results.get("trades", []))
 
+                # Get benchmark name from payload (optional)
+                benchmark_name = payload.get("benchmark_name")
+
                 analysis = PerformanceAnalyzer(
                     equity_curve=equity_df,
                     trades=trades_df,
                     initial_capital=float(payload.get("initial_capital", 1000000)),
+                    benchmark_name=benchmark_name if benchmark_name and benchmark_name != "none" else None,
                 ).analyze()
 
                 score = compute_strategy_score(analysis)
@@ -312,10 +315,19 @@ class JobManager:
                         job_id,
                     ),
                 )
-            except Exception as exc:
+            except (KeyboardInterrupt, SystemExit) as exc:
+                # Handle forced termination (Ctrl+C, kill, etc.)
                 db_execute(
                     "UPDATE backtests SET status=?, error=?, finished_at=? WHERE id=?",
-                    ("FAILED", str(exc), _now_iso(), job_id),
+                    ("FAILED", f"Backtest terminated: {type(exc).__name__}", _now_iso(), job_id),
+                )
+                raise
+            except Exception as exc:
+                import traceback
+                error_msg = f"{str(exc)}\n{traceback.format_exc()}"
+                db_execute(
+                    "UPDATE backtests SET status=?, error=?, finished_at=? WHERE id=?",
+                    ("FAILED", error_msg, _now_iso(), job_id),
                 )
 
         thread = threading.Thread(target=run_job, daemon=True)
@@ -495,6 +507,121 @@ def get_rankings(metric: str = "score"):
         })
     items.sort(key=lambda x: x["rank_value"], reverse=True)
     return {"items": items}
+
+
+@app.get("/api/kline/{code}")
+def get_kline(code: str, start: str = "", end: str = ""):
+    """Return OHLCV K-line data for a stock code."""
+    csv_path = DATA_DIR / f"{code}.csv"
+    if not csv_path.exists():
+        raise HTTPException(status_code=404, detail=f"Stock data not found for {code}")
+    try:
+        df = pd.read_csv(csv_path)
+        if "date" not in df.columns:
+            raise HTTPException(status_code=400, detail="Invalid data format")
+        df["date"] = pd.to_datetime(df["date"])
+        df = df.sort_values("date")
+        if start:
+            df = df[df["date"] >= pd.to_datetime(start)]
+        if end:
+            df = df[df["date"] <= pd.to_datetime(end)]
+
+        required_cols = ["date", "open", "high", "low", "close"]
+        for col in required_cols:
+            if col not in df.columns:
+                raise HTTPException(status_code=400, detail=f"Missing column: {col}")
+
+        records = []
+        for _, row in df.iterrows():
+            rec: Dict[str, Any] = {
+                "time": row["date"].strftime("%Y-%m-%d"),
+                "open": float(row["open"]),
+                "high": float(row["high"]),
+                "low": float(row["low"]),
+                "close": float(row["close"]),
+            }
+            if "volume" in df.columns:
+                rec["volume"] = float(row["volume"])
+            records.append(rec)
+        return {"code": code, "data": records}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/benchmark")
+def get_benchmark(name: str, start: str, end: str):
+    bench_dir = DATA_DIR / "index"
+    bench_path = bench_dir / f"{name}.csv"
+    if not bench_path.exists():
+        raise HTTPException(status_code=404, detail="Benchmark data not found.")
+    df = pd.read_csv(bench_path)
+    if "date" not in df.columns or "close" not in df.columns:
+        raise HTTPException(status_code=400, detail="Invalid benchmark data format.")
+    df["date"] = pd.to_datetime(df["date"])
+    df = df[(df["date"] >= pd.to_datetime(start)) & (df["date"] <= pd.to_datetime(end))]
+    if df.empty:
+        return {"series": []}
+    base = float(df["close"].iloc[0])
+    df["nav"] = df["close"] / base
+    series = [{"date": d.strftime("%Y-%m-%d"), "nav": float(v)} for d, v in zip(df["date"], df["nav"])]
+    return {"series": series}
+
+
+@app.get("/api/backtests/{backtest_id}/analysis")
+def get_backtest_analysis(backtest_id: str, benchmark: str = "none"):
+    """
+    Recompute analysis for a backtest with specified benchmark.
+
+    Args:
+        backtest_id: Backtest ID
+        benchmark: Benchmark name (e.g., "上证指数", "沪深300") or "none"
+
+    Returns:
+        Analysis results with benchmark comparison if specified
+    """
+    # Load backtest from database
+    rows = db_query("SELECT * FROM backtests WHERE id=?", (backtest_id,))
+    if not rows:
+        raise HTTPException(status_code=404, detail="Backtest not found.")
+    row = rows[0]
+
+    # Check if backtest is completed
+    if row["status"] != "COMPLETED":
+        raise HTTPException(status_code=400, detail="Backtest not completed.")
+
+    # Load result
+    result = _json_loads(row["result_json"])
+    if not result:
+        raise HTTPException(status_code=400, detail="No result data available.")
+
+    # Extract equity curve and trades
+    equity_df = pd.DataFrame(result.get("equity_curve", []))
+    trades_df = pd.DataFrame(result.get("trades", []))
+
+    # Get initial capital from payload
+    payload = _json_loads(row["payload_json"])
+    initial_capital = float(payload.get("initial_capital", 1000000)) if payload else 1000000
+
+    # Recompute analysis with benchmark
+    benchmark_name = benchmark if benchmark and benchmark != "none" else None
+
+    try:
+        analysis = PerformanceAnalyzer(
+            equity_curve=equity_df,
+            trades=trades_df,
+            initial_capital=initial_capital,
+            benchmark_name=benchmark_name,
+        ).analyze()
+
+        return {
+            "backtest_id": backtest_id,
+            "benchmark": benchmark,
+            "analysis": analysis
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to compute analysis: {str(e)}")
 
 
 @app.get("/api/benchmark")

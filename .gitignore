@@ -1,18 +1,34 @@
-# Data
-data/raw/
-data/processed/
-results/
+# Data & Logs
+data/
+index_data/
+logs/
+*.log
+*.csv
+*.db
+*.duckdb
+*.duckdb.wal
+!stocklist.csv
 
 
 # Python
 __pycache__/
+backend/_pycache_/
+backtest/_pycache_/
 *.pyc
 .venv/
 .env
-
+venv_stock/
 
 # Jupyter
 .ipynb_checkpoints/
+*.ipynb
+
+
+# Node.js
+node_modules/
+dist/
+.next/
+out/
 
 
 # OS
@@ -21,3 +37,7 @@ __pycache__/
 
 # VSCode
 .vscode/
+
+
+# Typescript
+*.tsbuildinfo

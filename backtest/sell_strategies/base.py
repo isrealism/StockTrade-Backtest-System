@@ -253,6 +253,7 @@ def _import_strategy_class(class_name: str):
         'FixedProfitTargetStrategy': 'backtest.sell_strategies.profit_targets',
         'MultipleRExitStrategy': 'backtest.sell_strategies.profit_targets',
         'TimedExitStrategy': 'backtest.sell_strategies.time_based',
+        'EarlyExitStrategy': 'backtest.sell_strategies.time_based',
         'KDJOverboughtExitStrategy': 'backtest.sell_strategies.indicator_exits',
         'BBIReversalExitStrategy': 'backtest.sell_strategies.indicator_exits',
         'ZXLinesCrossDownExitStrategy': 'backtest.sell_strategies.indicator_exits',

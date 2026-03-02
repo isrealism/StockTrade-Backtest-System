@@ -115,21 +115,31 @@ class MultipleRExitStrategy(SellStrategy):
             return False, ""
 
         entry_idx = entry_idx[0]
+        entry_row = hist_data.loc[entry_idx]
 
-        # Get data up to entry for ATR calculation
-        data_up_to_entry = hist_data.loc[:entry_idx]
+        # ── 优先从数据库预计算列读取入场当日 ATR ──────────────────────
+        # DB 列命名：atr_14 或 atr_22（对应 atr_period=14 或 22）
+        atr_col = f'atr_{self.atr_period}'
+        atr_at_entry = None
 
-        if len(data_up_to_entry) < self.atr_period + 1:
-            # Insufficient data for ATR, use simple percentage as fallback
+        if atr_col in hist_data.columns:
+            val = entry_row.get(atr_col)
+            if val is not None and pd.notna(val) and float(val) > 0:
+                atr_at_entry = float(val)
+
+        # 回退：实时计算（atr_period 不是 14 或 22，或 DB 列缺失）
+        if atr_at_entry is None:
+            data_up_to_entry = hist_data.loc[:entry_idx]
+            if len(data_up_to_entry) >= self.atr_period + 1:
+                atr_at_entry = self._calculate_atr(data_up_to_entry, self.atr_period)
+        # ──────────────────────────────────────────────────────────────
+
+        if atr_at_entry is None or atr_at_entry <= 0:
+            # 最终兜底：固定百分比
             initial_risk_pct = 0.02 * self.stop_multiplier
         else:
-            # Calculate ATR at entry
-            atr_at_entry = self._calculate_atr(data_up_to_entry, self.atr_period)
-            if atr_at_entry is None or atr_at_entry <= 0:
-                initial_risk_pct = 0.02 * self.stop_multiplier
-            else:
-                # Risk = (ATR × stop_multiplier) / entry_price
-                initial_risk_pct = (atr_at_entry * self.stop_multiplier) / position.entry_price
+            # Risk = (ATR × stop_multiplier) / entry_price
+            initial_risk_pct = (atr_at_entry * self.stop_multiplier) / position.entry_price
 
         # Target profit = R × r_multiple
         target_profit_pct = initial_risk_pct * self.r_multiple
