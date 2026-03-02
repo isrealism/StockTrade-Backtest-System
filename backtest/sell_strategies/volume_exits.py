@@ -48,7 +48,8 @@ class VolumeDryUpExitStrategy(SellStrategy):
         position: Position,
         current_date: datetime,
         current_data: pd.Series,
-        hist_data: pd.DataFrame
+        hist_data: pd.DataFrame,
+        **kwargs
     ) -> Tuple[bool, str]:
         """Check if volume dried up."""
         if len(hist_data) < self.lookback_period + self.consecutive_days:

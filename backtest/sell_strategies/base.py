@@ -85,7 +85,8 @@ class CompositeSellStrategy(SellStrategy):
         position: Position,
         current_date: datetime,
         current_data: pd.Series,
-        hist_data: pd.DataFrame
+        hist_data: pd.DataFrame,
+        **kwargs,
     ) -> Tuple[bool, str]:
         """
         Check all strategies and combine results.
@@ -104,7 +105,7 @@ class CompositeSellStrategy(SellStrategy):
         for strategy in self.strategies:
             try:
                 should_sell, reason = strategy.should_sell(
-                    position, current_date, current_data, hist_data
+                    position, current_date, current_data, hist_data, **kwargs
                 )
                 results.append((should_sell, reason, strategy.get_name()))
             except Exception as e:
@@ -145,7 +146,8 @@ class SimpleHoldStrategy(SellStrategy):
         position: Position,
         current_date: datetime,
         current_data: pd.Series,
-        hist_data: pd.DataFrame
+        hist_data: pd.DataFrame,
+        **kwargs,
     ) -> Tuple[bool, str]:
         """Never sell."""
         return False, ""

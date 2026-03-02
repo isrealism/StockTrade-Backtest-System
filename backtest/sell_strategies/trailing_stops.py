@@ -44,7 +44,8 @@ class ATRTrailingStopStrategy(SellStrategy):
         position: Position,
         current_date: datetime,
         current_data: pd.Series,
-        hist_data: pd.DataFrame
+        hist_data: pd.DataFrame,
+        **kwargs
     ) -> Tuple[bool, str]:
         """Check if current price hit ATR trailing stop."""
         # ── 优先使用数据库预计算列 ──────────────────────────────────────
@@ -147,7 +148,8 @@ class ChandelierStopStrategy(SellStrategy):
         position: Position,
         current_date: datetime,
         current_data: pd.Series,
-        hist_data: pd.DataFrame
+        hist_data: pd.DataFrame,
+        **kwargs
     ) -> Tuple[bool, str]:
         """Check if current price hit Chandelier stop."""
         # ── 优先使用数据库预计算列 ──────────────────────────────────────
@@ -248,7 +250,8 @@ class PercentageTrailingStopStrategy(SellStrategy):
         position: Position,
         current_date: datetime,
         current_data: pd.Series,
-        hist_data: pd.DataFrame
+        hist_data: pd.DataFrame,
+        **kwargs
     ) -> Tuple[bool, str]:
         """Check if current price hit percentage trailing stop."""
         current_close = current_data['close']

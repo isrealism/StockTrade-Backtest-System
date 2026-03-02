@@ -447,7 +447,7 @@ class RotationManager:
                 return None
 
         # 计算仓位（复用 portfolio 的仓位计算逻辑，使用当日投影现金）
-        execution_date = signal_date + timedelta(days=1)
+        execution_date = portfolio._next_trading_date(signal_date)
         projected_cash = portfolio.get_projected_cash(execution_date)
         shares = portfolio.calculate_position_size(
             code=code,

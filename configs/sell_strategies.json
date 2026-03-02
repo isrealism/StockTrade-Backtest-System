@@ -11,9 +11,9 @@
         {
           "class": "EarlyExitStrategy",
           "params": {
-            "window_days": 3,
-            "lower_bound": -0.02,
-            "upper_bound": 0.03
+            "consecutive_days": 3,
+            "daily_lower": -0.03,
+            "daily_upper": 0.03
           }
         },
         {
@@ -32,7 +32,7 @@
         {
           "class": "TimedExitStrategy",
           "params": {
-            "max_holding_days": 60
+            "max_holding_days": 20
           }
         }
       ]
@@ -46,9 +46,9 @@
         {
           "class": "EarlyExitStrategy",
           "params": {
-            "window_days": 3,
-            "lower_bound": -0.02,
-            "upper_bound": 0.03
+            "consecutive_days": 3,
+            "daily_lower": -0.03,
+            "daily_upper": 0.03
           }
         },
         {
@@ -67,7 +67,7 @@
         {
           "class": "TimedExitStrategy",
           "params": {
-            "max_holding_days": 45
+            "max_holding_days": 20
           }
         }
       ]
@@ -81,9 +81,9 @@
         {
           "class": "EarlyExitStrategy",
           "params": {
-            "window_days": 3,
-            "lower_bound": -0.02,
-            "upper_bound": 0.03
+            "consecutive_days": 3,
+            "daily_lower": -0.03,
+            "daily_upper": 0.03
           }
         },
         {
@@ -108,7 +108,7 @@
         {
           "class": "TimedExitStrategy",
           "params": {
-            "max_holding_days": 60
+            "max_holding_days": 20
           }
         }
       ]
@@ -122,9 +122,9 @@
         {
           "class": "EarlyExitStrategy",
           "params": {
-            "window_days": 3,
-            "lower_bound": -0.02,
-            "upper_bound": 0.03
+            "consecutive_days": 3,
+            "daily_lower": -0.03,
+            "daily_upper": 0.03
           }
         },
         {
@@ -148,7 +148,7 @@
         {
           "class": "TimedExitStrategy",
           "params": {
-            "max_holding_days": 60
+            "max_holding_days": 20
           }
         }
       ]
@@ -162,9 +162,9 @@
         {
           "class": "EarlyExitStrategy",
           "params": {
-            "window_days": 3,
-            "lower_bound": -0.02,
-            "upper_bound": 0.03
+            "consecutive_days": 3,
+            "daily_lower": -0.03,
+            "daily_upper": 0.03
           }
         },
         {
@@ -186,7 +186,7 @@
         {
           "class": "TimedExitStrategy",
           "params": {
-            "max_holding_days": 60
+            "max_holding_days": 20
           }
         }
       ]
@@ -200,9 +200,9 @@
         {
           "class": "EarlyExitStrategy",
           "params": {
-            "window_days": 3,
-            "lower_bound": -0.02,
-            "upper_bound": 0.03
+            "consecutive_days": 3,
+            "daily_lower": -0.03,
+            "daily_upper": 0.03
           }
         },
         {
@@ -225,7 +225,7 @@
         {
           "class": "TimedExitStrategy",
           "params": {
-            "max_holding_days": 60
+            "max_holding_days": 20
           }
         }
       ]
@@ -239,9 +239,9 @@
         {
           "class": "EarlyExitStrategy",
           "params": {
-            "window_days": 3,
-            "lower_bound": -0.02,
-            "upper_bound": 0.03
+            "consecutive_days": 3,
+            "daily_lower": -0.03,
+            "daily_upper": 0.03
           }
         },
         {
@@ -253,7 +253,7 @@
         {
           "class": "TimedExitStrategy",
           "params": {
-            "max_holding_days": 60
+            "max_holding_days": 20
           }
         }
       ]
@@ -271,6 +271,6 @@
     "Select a strategy by name when running backtest",
     "Example: python scripts/run_backtest.py --sell-strategy conservative_trailing",
     "You can also define custom strategies in code or JSON",
-    "EarlyExitStrategy: sells within window_days if return is between lower_bound and upper_bound (default: 3d, -2%~+3%)"
+    "EarlyExitStrategy: sells within consecutive_days if return is between daily_lower and daily_upper (default: 3d, -3%~+3%)"
   ]
 }

@@ -50,7 +50,8 @@ class FixedProfitTargetStrategy(SellStrategy):
         position: Position,
         current_date: datetime,
         current_data: pd.Series,
-        hist_data: pd.DataFrame
+        hist_data: pd.DataFrame,
+        **kwargs
     ) -> Tuple[bool, str]:
         """Check if profit target reached."""
         current_close = current_data['close']
@@ -105,7 +106,8 @@ class MultipleRExitStrategy(SellStrategy):
         position: Position,
         current_date: datetime,
         current_data: pd.Series,
-        hist_data: pd.DataFrame
+        hist_data: pd.DataFrame,
+        **kwargs
     ) -> Tuple[bool, str]:
         """Check if R-multiple target reached."""
         # Calculate initial R (risk at entry)
