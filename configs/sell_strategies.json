@@ -9,14 +9,6 @@
       "combination_logic": "ANY",
       "strategies": [
         {
-          "class": "EarlyExitStrategy",
-          "params": {
-            "consecutive_days": 3,
-            "daily_lower": -0.03,
-            "daily_upper": 0.03
-          }
-        },
-        {
           "class": "PercentageTrailingStopStrategy",
           "params": {
             "trailing_pct": 0.08,
@@ -32,7 +24,7 @@
         {
           "class": "TimedExitStrategy",
           "params": {
-            "max_holding_days": 20
+            "max_holding_days": 60
           }
         }
       ]
