@@ -313,19 +313,53 @@ class SuperB1Selector:
 
         return True
 
-    def select(self, date: pd.Timestamp, data: Dict[str, pd.DataFrame]) -> List[str]:        
-        picks: List[str] = []
+    def select(self, date: pd.Timestamp, data: Dict[str, pd.DataFrame]) -> List[str]:
         min_len = self.lookback_n + self._extra_for_bbi
 
+        # ── 第一步：切片并暂存 hist ──────────────────────────────────
+        latest_rows: List[pd.Series] = []
+        code_to_hist: Dict[str, pd.DataFrame] = {}
+
         for code, df in data.items():
-            hist = df[df["date"] <= date].tail(min_len)
+            _idx = int(df["date"].searchsorted(date, side="right"))
+            if _idx < 2:
+                continue
+            hist = df.iloc[:_idx].tail(min_len)
             if len(hist) < min_len:
                 continue
-            if self._passes_filters(hist):
+            row = hist.iloc[-1].copy()
+            row["_code"] = code
+            # 预算跌幅，避免向量化时需要 shift
+            prev_close = hist.iloc[-2]["close"]
+            row["_prev_close"] = prev_close
+            latest_rows.append(row)
+            code_to_hist[code] = hist
+
+        if not latest_rows:
+            return []
+
+        latest_df = pd.DataFrame(latest_rows).set_index("_code")
+
+        # ── 第二步：向量化预筛（4 条件，把候选从 5000 降到几十）────────
+        # 条件 1：当日约束
+        mask = latest_df["day_constraints_pass"] == 1
+        # 条件 2：知行约束（短期 > 长期）
+        mask &= latest_df["zx_short_gt_long"] == 1
+        # 条件 3：J 值低（必须 < j_threshold）
+        mask &= latest_df["kdj_j"] < self.j_threshold
+        # 条件 4：当日下跌达到 price_drop_pct
+        drop = (latest_df["_prev_close"] - latest_df["close"]) / latest_df["_prev_close"]
+        mask &= drop >= self.price_drop_pct
+
+        candidates = latest_df.index[mask].tolist()
+
+        # ── 第三步：精细过滤（只对少量候选跑完整逻辑）──────────────────
+        picks: List[str] = []
+        for code in candidates:
+            if self._passes_filters(code_to_hist[code]):
                 picks.append(code)
-
         return picks
-
+        
 
 class PeakKDJSelector:
 
@@ -427,18 +461,40 @@ class PeakKDJSelector:
 
         return True
 
-    def select(
-        self,
-        date: pd.Timestamp,
-        data: Dict[str, pd.DataFrame],
-    ) -> List[str]:
-        picks: List[str] = []
+    def select(self, date: pd.Timestamp, data: Dict[str, pd.DataFrame]) -> List[str]:
+        # ── 第一步：切片并暂存 hist ──────────────────────────────────
+        latest_rows: List[pd.Series] = []
+        code_to_hist: Dict[str, pd.DataFrame] = {}
+
         for code, df in data.items():
-            hist = df[df["date"] <= date]
+            _idx = int(df["date"].searchsorted(date, side="right"))
+            if _idx == 0:
+                continue
+            hist = df.iloc[:_idx].tail(self.max_window + 20)
             if hist.empty:
                 continue
-            hist = hist.tail(self.max_window + 20)  # 额外缓冲
-            if self._passes_filters(hist):
+            row = hist.iloc[-1].copy()
+            row["_code"] = code
+            latest_rows.append(row)
+            code_to_hist[code] = hist
+
+        if not latest_rows:
+            return []
+
+        latest_df = pd.DataFrame(latest_rows).set_index("_code")
+
+        # ── 第二步：向量化预筛 ───────────────────────────────────────
+        # 当日约束 + 知行约束（收盘 > 长期 且 短期 > 长期）
+        mask = latest_df["day_constraints_pass"] == 1
+        mask &= latest_df["zx_close_gt_long"] == 1
+        mask &= latest_df["zx_short_gt_long"] == 1
+
+        candidates = latest_df.index[mask].tolist()
+
+        # ── 第三步：精细过滤 ─────────────────────────────────────────
+        picks: List[str] = []
+        for code in candidates:
+            if self._passes_filters(code_to_hist[code]):
                 picks.append(code)
         return picks
 
@@ -547,24 +603,46 @@ class BBIShortLongSelector:
 
         return True
 
-    def select(
-        self,
-        date: pd.Timestamp,
-        data: Dict[str, pd.DataFrame],
-    ) -> List[str]:
-        picks: List[str] = []
+    def select(self, date: pd.Timestamp, data: Dict[str, pd.DataFrame]) -> List[str]:
+        need_len = max(
+            max(self.n_short, self.n_long) + self.bbi_min_window + self.m,
+            self.max_window,
+        )
+
+        # ── 第一步：切片并暂存 hist ──────────────────────────────────
+        latest_rows: List[pd.Series] = []
+        code_to_hist: Dict[str, pd.DataFrame] = {}
+
         for code, df in data.items():
-            hist = df[df["date"] <= date]
+            _idx = int(df["date"].searchsorted(date, side="right"))
+            if _idx == 0:
+                continue
+            hist = df.iloc[:_idx].tail(need_len)
             if hist.empty:
                 continue
-            # 预留足够长度：RSV 计算窗口 + BBI 检测窗口 + m
-            need_len = (
-                max(self.n_short, self.n_long)
-                + self.bbi_min_window
-                + self.m
-            )
-            hist = hist.tail(max(need_len, self.max_window))
-            if self._passes_filters(hist):
+            row = hist.iloc[-1].copy()
+            row["_code"] = code
+            latest_rows.append(row)
+            code_to_hist[code] = hist
+
+        if not latest_rows:
+            return []
+
+        latest_df = pd.DataFrame(latest_rows).set_index("_code")
+
+        # ── 第二步：向量化预筛 ───────────────────────────────────────
+        # 当日约束 + DIF > 0 + 知行约束（收盘 > 长期 且 短期 > 长期）
+        mask = latest_df["day_constraints_pass"] == 1
+        mask &= latest_df["dif"] > 0
+        mask &= latest_df["zx_close_gt_long"] == 1
+        mask &= latest_df["zx_short_gt_long"] == 1
+
+        candidates = latest_df.index[mask].tolist()
+
+        # ── 第三步：精细过滤 ─────────────────────────────────────────
+        picks: List[str] = []
+        for code in candidates:
+            if self._passes_filters(code_to_hist[code]):
                 picks.append(code)
         return picks
 
@@ -603,7 +681,7 @@ class MA60CrossVolumeWaveSelector:
         self.ma60_slope_days = ma60_slope_days
         self.max_window = max_window
 
-    def _ma_slope_positive(series: pd.Series, days: int) -> bool:
+    def _ma_slope_positive(self, series: pd.Series, days: int) -> bool:
         """对最近 days 个点做一阶线性回归，斜率 > 0 判为正"""
         seg = series.dropna().tail(days)
         if len(seg) < days:
@@ -686,14 +764,42 @@ class MA60CrossVolumeWaveSelector:
         return True
 
     def select(self, date: pd.Timestamp, data: Dict[str, pd.DataFrame]) -> List[str]:
-        picks: List[str] = []
-        # 给足 60 日均线与量能比较的历史长度
         need_len = max(60 + self.lookback_n + self.ma60_slope_days, self.max_window + 20)
+
+        # ── 第一步：切片并暂存 hist ──────────────────────────────────
+        latest_rows: List[pd.Series] = []
+        code_to_hist: Dict[str, pd.DataFrame] = {}
+
         for code, df in data.items():
-            hist = df[df["date"] <= date].tail(need_len)
+            _idx = int(df["date"].searchsorted(date, side="right"))
+            if _idx == 0:
+                continue
+            hist = df.iloc[:_idx].tail(need_len)
             if len(hist) < need_len:
                 continue
-            if self._passes_filters(hist):
+            row = hist.iloc[-1].copy()
+            row["_code"] = code
+            latest_rows.append(row)
+            code_to_hist[code] = hist
+
+        if not latest_rows:
+            return []
+
+        latest_df = pd.DataFrame(latest_rows).set_index("_code")
+
+        # ── 第二步：向量化预筛 ───────────────────────────────────────
+        # 当日约束 + 当日收盘 >= MA60 + 知行约束（收盘 > 长期 且 短期 > 长期）
+        mask = latest_df["day_constraints_pass"] == 1
+        mask &= latest_df["close"] >= latest_df["ma60"]
+        mask &= latest_df["zx_close_gt_long"] == 1
+        mask &= latest_df["zx_short_gt_long"] == 1
+
+        candidates = latest_df.index[mask].tolist()
+
+        # ── 第三步：精细过滤 ─────────────────────────────────────────
+        picks: List[str] = []
+        for code in candidates:
+            if self._passes_filters(code_to_hist[code]):
                 picks.append(code)
         return picks
 
@@ -732,7 +838,7 @@ class BigBullishVolumeSelector:
         self.close_lt_zxdq_mult = float(close_lt_zxdq_mult)
         self.min_history = int(min_history) if min_history is not None else (self.vol_lookback_n + 2)
 
-    def _to_float(x) -> float:
+    def _to_float(self, x) -> float:
         try:
             return float(x)
         except Exception:
@@ -819,16 +925,51 @@ class BigBullishVolumeSelector:
         return True
 
     def select(self, date: pd.Timestamp, data: Dict[str, pd.DataFrame]) -> List[str]:
-        picks: List[str] = []
         need_len = max(self.min_history, self.vol_lookback_n + 2)
+
+        # ── 第一步：切片并暂存 hist ──────────────────────────────────
+        latest_rows: List[pd.Series] = []
+        code_to_hist: Dict[str, pd.DataFrame] = {}
 
         for code, df in data.items():
             if df is None or df.empty:
                 continue
-            hist = df[df["date"] <= date].tail(need_len)
+            _idx = int(df["date"].searchsorted(date, side="right"))
+            if _idx == 0:
+                continue
+            hist = df.iloc[:_idx].tail(need_len)
             if len(hist) < need_len:
                 continue
-            if self._passes_filters(hist):
-                picks.append(code)
+            row = hist.iloc[-1].copy()
+            row["_code"] = code
+            latest_rows.append(row)
+            code_to_hist[code] = hist
 
+        if not latest_rows:
+            return []
+
+        latest_df = pd.DataFrame(latest_rows).set_index("_code")
+
+        # ── 第二步：向量化预筛 ───────────────────────────────────────
+        mask = pd.Series(True, index=latest_df.index)
+
+        # 条件2（可选）：收阳 close >= open
+        if self.require_bullish_close:
+            mask &= latest_df["close"] >= latest_df["open"]
+
+        # 条件3：上影线百分比 < upper_wick_pct_max
+        oc_max = latest_df[["open", "close"]].max(axis=1)
+        wick_pct = (latest_df["high"] - oc_max) / oc_max.replace(0, np.nan)
+        mask &= wick_pct < self.upper_wick_pct_max
+
+        # 条件4：close < zxdq * close_lt_zxdq_mult
+        mask &= latest_df["close"] < latest_df["zxdq"] * self.close_lt_zxdq_mult
+
+        candidates = latest_df.index[mask].tolist()
+
+        # ── 第三步：精细过滤 ─────────────────────────────────────────
+        picks: List[str] = []
+        for code in candidates:
+            if self._passes_filters(code_to_hist[code]):
+                picks.append(code)
         return picks

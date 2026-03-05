@@ -27,7 +27,7 @@
     FEISHU_APP_ID        飞书应用 App ID（Bot API，支持按钮交互）
     FEISHU_APP_SECRET    飞书应用 App Secret
     FEISHU_VERIFY_TOKEN  卡片回调验证 Token（开放平台「事件订阅」页获取）
-    FEISHU_CHAT_ID       机器人所在群的 chat_id
+    FEISHU_CHAT_ID       消息接收者 open_id（个人）或 chat_id（群）
     FEISHU_CALLBACK_PORT 回调服务监听端口（默认 8765）
 
 回调服务启动：
@@ -183,6 +183,10 @@ def _normalize_date(s: str) -> str:
 # 二、消息正文构建
 # ══════════════════════════════════════════════════════════════════════════════
 
+# ══════════════════════════════════════════════════════════════════════════════
+# 二、消息正文构建
+# ══════════════════════════════════════════════════════════════════════════════
+
 def _build_signal_text(
     results: Dict[str, List[str]],
     trade_date: str,
@@ -199,9 +203,8 @@ def _build_signal_text(
            2. - 600036  招商银行
            3. - 600519  贵州茅台
 
-        2. 填坑战法（2 只）：
-           1. - 000858  五粮液
-           2. - 601318  中国平安
+        2. SuperB1战法（0 只）：
+           无
     """
     all_codes = results.get("__all__", [])
     count     = len(all_codes)
@@ -213,14 +216,21 @@ def _build_signal_text(
 
     selector_idx = 1
     for alias, codes in results.items():
-        if alias == "__all__" or not codes:
+        if alias == "__all__":
             continue
+            
         lines.append("")
         lines.append(f"{selector_idx}. {alias}（{len(codes)} 只）：")
-        for stock_idx, code in enumerate(codes, start=1):
-            name     = name_map.get(code, "")
-            name_str = f"  {name}" if name else ""
-            lines.append(f"   {stock_idx}. - {code}{name_str}")
+        
+        # 如果该战法没有选出股票，显示“无”而不是直接跳过
+        if not codes:
+            lines.append("   无")
+        else:
+            for stock_idx, code in enumerate(codes, start=1):
+                name     = name_map.get(code, "")
+                name_str = f"  {name}" if name else ""
+                lines.append(f"   {stock_idx}. - {code}{name_str}")
+                
         selector_idx += 1
 
     return "\n".join(lines)
@@ -337,7 +347,10 @@ def _management_card() -> dict:
 
 
 def _query_input_card() -> dict:
-    """构建日期查询输入卡片。用 date_picker 选日期后点「查询」提交。"""
+    """
+    构建日期查询输入卡片。
+    date_picker 选完日期后直接触发 submit_query，无需额外点按钮。
+    """
     today = date.today().isoformat()
     return {
         "msg_type": "interactive",
@@ -349,22 +362,17 @@ def _query_input_card() -> dict:
             "elements": [
                 {
                     "tag":  "div",
-                    "text": {"tag": "lark_md", "content": "请选择要查询的交易日期："},
+                    "text": {"tag": "lark_md", "content": "请选择要查询的交易日期，选完自动查询："},
                 },
                 {
                     "tag": "action",
                     "actions": [
                         {
+                            # 选完日期直接触发 submit_query，date 值在回调的 action.option 里
                             "tag":          "date_picker",
-                            "placeholder":  {"tag": "plain_text", "content": "选择日期"},
+                            "placeholder":  {"tag": "plain_text", "content": "点击选择日期"},
                             "initial_date": today,
-                            "value":        {"action": "pick_date"},
-                        },
-                        {
-                            "tag":   "button",
-                            "text":  {"tag": "plain_text", "content": "查询"},
-                            "type":  "primary",
-                            "value": {"action": "submit_query"},
+                            "value":        {"action": "submit_query"},
                         },
                         {
                             "tag":   "button",
@@ -470,14 +478,14 @@ def _get_tenant_token() -> str:
     return _token_cache["token"]
 
 
-def _post_bot(card: dict, chat_id: Optional[str] = None) -> None:
+def _post_bot(card: dict, open_id: Optional[str] = None) -> None:
     """通过 Bot API 向群发送交互卡片（支持按钮回调）。"""
-    cid = chat_id or CHAT_ID
+    cid = open_id or CHAT_ID
     if not cid:
         raise EnvironmentError("FEISHU_CHAT_ID 未设置")
     token = _get_tenant_token()
     resp  = requests.post(
-        "https://open.feishu.cn/open-apis/im/v1/messages?receive_id_type=chat_id",
+        "https://open.feishu.cn/open-apis/im/v1/messages?receive_id_type=open_id",
         headers={
             "Content-Type":  "application/json",
             "Authorization": f"Bearer {token}",
@@ -499,16 +507,24 @@ def _post_bot(card: dict, chat_id: Optional[str] = None) -> None:
 def _send(card: dict, prefer_bot: bool = True) -> None:
     """
     智能发送：
-      prefer_bot=True 且配置了 App 凭据 → Bot API（按钮可交互）
-      否则 → Webhook（无需额外配置）
+      - 配置了 App 凭据（APP_ID + APP_SECRET + CHAT_ID）→ 优先 Bot API
+      - 仅配置了 WEBHOOK_URL → 走 Webhook
+      - 两者都没配置 → 打印警告，不报错
     """
-    if prefer_bot and APP_ID and APP_SECRET and CHAT_ID:
+    if APP_ID and APP_SECRET and CHAT_ID:
         try:
             _post_bot(card)
             return
         except Exception as e:
-            logger.warning("Bot API 失败，降级 Webhook：%s", e)
-    _post_webhook(card)
+            logger.warning("Bot API 失败：%s", e)
+            if WEBHOOK_URL:
+                logger.info("降级到 Webhook 重试")
+                _post_webhook(card)
+            return
+    if WEBHOOK_URL:
+        _post_webhook(card)
+        return
+    logger.warning("飞书未配置任何发送方式（FEISHU_APP_ID 或 FEISHU_WEBHOOK_URL），消息未发送")
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -564,7 +580,7 @@ def send_error(error_msg: str) -> None:
             ],
         },
     }
-    _send(card, prefer_bot=False)
+    _send(card, prefer_bot=True)
 
 
 def send_management_card() -> None:
@@ -705,8 +721,18 @@ class FeishuCallbackServer:
 
         # ── 返回最新信号卡片 ──────────────────────────────────────────────
         elif action_tag == "back_to_signal":
+            # 优先用内存缓存；缓存没有时从当天信号文件重建
             if self._last_signal_card:
                 return {"card": self._last_signal_card}
+
+            today    = date.today().isoformat()
+            name_map = load_name_map()
+            results  = load_signal_for_date(today)
+            if results:
+                card = _signal_card(results, today, name_map)
+                self._last_signal_card = card["card"]   # 顺便缓存
+                return {"card": card["card"]}
+
             return {"toast": {"type": "info", "content": "暂无缓存信号，请等待下次推送"}}
 
         else:
@@ -736,11 +762,46 @@ class FeishuCallbackServer:
 
         def do_card_action_trigger(data: P2CardActionTrigger) -> P2CardActionTriggerResponse:
             """处理卡片按钮点击回调。"""
+            from lark_oapi.event.callback.model.p2_card_action_trigger import CallBackCard
+
+            def _make_response(result: dict) -> P2CardActionTriggerResponse:
+                """
+                把 _dispatch 返回的 dict 转成 SDK 要求的格式。
+                直接设置对象属性，避免 SDK init() 二次反序列化导致类型冲突。
+                """
+                from lark_oapi.event.callback.model.p2_card_action_trigger import (
+                    CallBackCard as _CallBackCard,
+                    CallBackToast as _CallBackToast,
+                )
+                resp = P2CardActionTriggerResponse()
+
+                # 设置 card
+                card_value = result.get("card")
+                if isinstance(card_value, dict):
+                    cb = _CallBackCard()
+                    # CallBackCard 的字段是 type 和 data，不是 card
+                    # type: "template" 或 "raw"（直接传卡片 JSON 时用 "raw"）
+                    # data: 卡片内容 dict
+                    cb.type = "raw"
+                    cb.data = card_value
+                    logger.debug("卡片回调响应 data keys: %s", list(card_value.keys()))
+                    resp.card = cb
+
+                # 设置 toast
+                toast_value = result.get("toast")
+                if isinstance(toast_value, dict):
+                    t = _CallBackToast()
+                    t.type    = toast_value.get("type", "info")
+                    t.content = toast_value.get("content", "")
+                    resp.toast = t
+
+                return resp
+
             try:
                 body   = server._extract_body(data)
                 result = server._dispatch(body)
                 logger.debug("回调响应：%s", result)
-                return P2CardActionTriggerResponse(result)
+                return _make_response(result)
             except Exception as e:
                 logger.error("卡片回调异常：%s", e, exc_info=True)
                 return P2CardActionTriggerResponse(
