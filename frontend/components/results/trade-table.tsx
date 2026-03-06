@@ -45,9 +45,11 @@ function parseExitReasonCategory(raw: string): string {
 
 interface TradeTableProps {
   trades: Array<Record<string, unknown>>;
+  backtestStartDate?: string; 
+  backtestEndDate?: string;
 }
 
-export function TradeTable({ trades: rawTrades }: TradeTableProps) {
+export function TradeTable({ trades: rawTrades, backtestStartDate, backtestEndDate }: TradeTableProps) {
   const [search, setSearch] = useState("");
   const [exitFilter, setExitFilter] = useState("all");
   const [strategyFilter, setStrategyFilter] = useState("all");
@@ -259,6 +261,8 @@ export function TradeTable({ trades: rawTrades }: TradeTableProps) {
       <KLineDialog
         trade={selectedTrade}
         onClose={() => setSelectedTrade(null)}
+        backtestStartDate={backtestStartDate}
+        backtestEndDate={backtestEndDate}
       />
     </div>
   );

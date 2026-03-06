@@ -125,7 +125,11 @@ export default function ResultsPage() {
           />
 
           {/* Trade Details Table */}
-          <TradeTable trades={trades} />
+          <TradeTable 
+            trades={trades}
+            backtestStartDate={backtestDetail?.start_date} 
+            backtestEndDate={backtestDetail?.end_date} 
+          />
 
           {/* Multi-Strategy Comparison */}
           <MultiStrategyComparison

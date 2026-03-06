@@ -408,14 +408,11 @@ export function SelectorConfig({
                             </Label>
                             <Input
                               type="number"
-                              value={String(value)}
-                              onChange={(e) =>
-                                updateParam(
-                                  idx,
-                                  key,
-                                  Number(e.target.value)
-                                )
-                              }
+                              value={value === 0 && String(value) === "0" ? "" : String(value)}
+                              onChange={(e) => {
+                                const raw = e.target.value;
+                                updateParam(idx, key, raw === "" ? "" : Number(raw));
+                              }}
                               className="h-8 text-xs"
                               step={
                                 typeof value === "number" && value < 1

@@ -50,7 +50,30 @@ export interface BacktestPayload {
   buy_config?: unknown;
   stock_pool?: { type: string; codes?: string[] };
   lookback_days?: number;
+
+  // ── Score 百分位过滤 ──────────────────────────────────────────────
+  score_filter_enabled?: boolean;
+  /** 百分位阈值，0–100，默认 60（只保留历史前 40% 强信号） */
+  score_percentile_threshold?: number;
+  /** 触发百分位计算的最低历史样本数，默认 20 */
+  score_min_history?: number;
+  /** 预热期天数，默认 20 */
+  score_warmup_lookback_days?: number;
+
+  // ── 换仓 (Rotation) ───────────────────────────────────────────────
+  rotation_enabled?: boolean;
+  /** 触发换仓考虑的最低未实现亏损比例，默认 0.05 (5%) */
+  rotation_min_loss?: number;
+  /** 每日最大换仓对数，默认 2 */
+  rotation_max_per_day?: number;
+  /** 新信号 score 须 >= 旧入场 score × 此倍数，默认 1.2 */
+  rotation_score_ratio?: number;
+  /** 新信号 score 须超过旧入场 score 的绝对值，默认 10.0 */
+  rotation_min_score_improvement?: number;
+  /** 无 entry_score 仓位的处理策略：skip / allow / mean，默认 skip */
+  rotation_no_score_policy?: "skip" | "allow" | "mean";
 }
+
 
 export interface BacktestSummary {
   id: string;

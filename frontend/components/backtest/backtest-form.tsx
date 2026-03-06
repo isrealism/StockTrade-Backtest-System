@@ -16,6 +16,13 @@ import {
 } from "@/components/ui/select";
 import { SelectorConfig } from "./selector-config";
 import { SellStrategyConfig } from "./sell-strategy-config";
+import {
+  ScoreRotationConfig,
+  DEFAULT_SCORE_FILTER,
+  DEFAULT_ROTATION,
+  type ScoreFilterConfig,
+  type RotationConfig,
+} from "./score-rotation-config";
 import { createBacktest, type BacktestPayload, type SelectorConfig as SelectorType, type SellStrategyConfig as SellType } from "@/lib/api";
 import {
   Play,
@@ -41,24 +48,30 @@ export function BacktestForm({ selectors, sellStrategies }: BacktestFormProps) {
 
   // Basic params
   const [name, setName] = useState("回测任务");
-  const [startDate, setStartDate] = useState("2024-01-01");
-  const [endDate, setEndDate] = useState("2024-12-31");
-  const [initialCapital, setInitialCapital] = useState(1000000);
-  const [maxPositions, setMaxPositions] = useState(10);
+  const [startDate, setStartDate] = useState("2025-01-01");
+  const [endDate, setEndDate] = useState("2025-12-31");
+  const [initialCapital, setInitialCapital] = useState("1000000");
+  const [maxPositions, setMaxPositions] = useState("20");
   const [positionSizing, setPositionSizing] = useState("equal_weight");
 
   // Advanced params
-  const [commissionRate, setCommissionRate] = useState(0.0003);
-  const [stampTaxRate, setStampTaxRate] = useState(0.001);
-  const [slippageRate, setSlippageRate] = useState(0.001);
-  const [lookbackDays, setLookbackDays] = useState(200);
+  const [commissionRate, setCommissionRate] = useState("0.0003");
+  const [stampTaxRate, setStampTaxRate] = useState("0.001");
+  const [slippageRate, setSlippageRate] = useState("0.001");
+  const [lookbackDays, setLookbackDays] = useState("200");
+
+  // Score rotation params
+  const [scoreFilter, setScoreFilter] = useState<ScoreFilterConfig>(DEFAULT_SCORE_FILTER);
+  const [rotation, setRotation] = useState<RotationConfig>(DEFAULT_ROTATION);
 
   // Stock pool
   const [stockPoolType, setStockPoolType] = useState("all");
   const [customCodes, setCustomCodes] = useState("");
 
   // Selector config
-  const [selectorList, setSelectorList] = useState(selectors);
+  const [selectorList, setSelectorList] = useState(
+  selectors.map((s) => ({ ...s, activate: false }))
+  ); 
   const [combinationMode, setCombinationMode] = useState("OR");
   const [timeWindowDays, setTimeWindowDays] = useState(5);
   const [triggerSelectors, setTriggerSelectors] = useState<string[]>([]);
@@ -103,15 +116,15 @@ export function BacktestForm({ selectors, sellStrategies }: BacktestFormProps) {
         name,
         start_date: startDate,
         end_date: endDate,
-        initial_capital: initialCapital,
-        max_positions: maxPositions,
+        initial_capital: Number(initialCapital) || 1000000,
+        max_positions: Number(maxPositions) || 20,
         position_sizing: positionSizing,
-        commission_rate: commissionRate,
-        stamp_tax_rate: stampTaxRate,
-        slippage_rate: slippageRate,
+        commission_rate: Number(commissionRate) || 0.0003,
+        stamp_tax_rate: Number(stampTaxRate) || 0.001,
+        slippage_rate: Number(slippageRate) || 0.001,
         sell_strategy_name: selectedSellStrategy,
         buy_config: buyConfig,
-        lookback_days: lookbackDays,
+        lookback_days: Number(lookbackDays) || 200,
         stock_pool:
           stockPoolType === "all"
             ? { type: "all" }
@@ -122,6 +135,20 @@ export function BacktestForm({ selectors, sellStrategies }: BacktestFormProps) {
                   .map((c) => c.trim())
                   .filter(Boolean),
               },
+
+        // ── Score 百分位过滤 ──────────────────────────────────────────
+        score_filter_enabled: scoreFilter.enabled,
+        score_percentile_threshold: scoreFilter.percentile_threshold,
+        score_min_history: scoreFilter.min_history,
+        score_warmup_lookback_days: scoreFilter.warmup_lookback_days,
+
+        // ── 换仓 (Rotation) ───────────────────────────────────────────
+        rotation_enabled: rotation.enabled,
+        rotation_min_loss: rotation.min_loss,
+        rotation_max_per_day: rotation.max_per_day,
+        rotation_score_ratio: rotation.score_ratio,
+        rotation_min_score_improvement: rotation.min_score_improvement,
+        rotation_no_score_policy: rotation.no_score_policy,
       };
 
       const result = await createBacktest(payload);
@@ -251,7 +278,7 @@ export function BacktestForm({ selectors, sellStrategies }: BacktestFormProps) {
                   <Input
                     type="number"
                     value={initialCapital}
-                    onChange={(e) => setInitialCapital(Number(e.target.value))}
+                    onChange={(e) => setInitialCapital(e.target.value)}
                     step={100000}
                   />
                 </div>
@@ -260,7 +287,7 @@ export function BacktestForm({ selectors, sellStrategies }: BacktestFormProps) {
                   <Input
                     type="number"
                     value={maxPositions}
-                    onChange={(e) => setMaxPositions(Number(e.target.value))}
+                    onChange={(e) => setMaxPositions(e.target.value)}
                     min={1}
                     max={50}
                   />
@@ -302,7 +329,7 @@ export function BacktestForm({ selectors, sellStrategies }: BacktestFormProps) {
                         type="number"
                         value={commissionRate}
                         onChange={(e) =>
-                          setCommissionRate(Number(e.target.value))
+                          setCommissionRate(e.target.value)
                         }
                         step={0.0001}
                         className="h-8 text-xs"
@@ -316,7 +343,7 @@ export function BacktestForm({ selectors, sellStrategies }: BacktestFormProps) {
                         type="number"
                         value={stampTaxRate}
                         onChange={(e) =>
-                          setStampTaxRate(Number(e.target.value))
+                          setStampTaxRate(e.target.value)
                         }
                         step={0.0001}
                         className="h-8 text-xs"
@@ -330,7 +357,7 @@ export function BacktestForm({ selectors, sellStrategies }: BacktestFormProps) {
                         type="number"
                         value={slippageRate}
                         onChange={(e) =>
-                          setSlippageRate(Number(e.target.value))
+                          setSlippageRate(e.target.value)
                         }
                         step={0.0001}
                         className="h-8 text-xs"
@@ -344,7 +371,7 @@ export function BacktestForm({ selectors, sellStrategies }: BacktestFormProps) {
                         type="number"
                         value={lookbackDays}
                         onChange={(e) =>
-                          setLookbackDays(Number(e.target.value))
+                          setLookbackDays(e.target.value)
                         }
                         min={60}
                         className="h-8 text-xs"
@@ -354,6 +381,12 @@ export function BacktestForm({ selectors, sellStrategies }: BacktestFormProps) {
                 )}
               </CardContent>
             </Card>
+          <ScoreRotationConfig
+            scoreFilter={scoreFilter}
+            rotation={rotation}
+            onScoreFilterChange={setScoreFilter}
+            onRotationChange={setRotation}
+          />
           </div>
         </TabsContent>
 

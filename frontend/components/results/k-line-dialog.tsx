@@ -25,6 +25,8 @@ interface Trade {
 interface KLineDialogProps {
   trade: Trade | null;
   onClose: () => void;
+  backtestStartDate?: string; 
+  backtestEndDate?: string;
 }
 
 /* ── Colours ────────────────────────────────────────── */
@@ -37,7 +39,7 @@ const BORDER_COLOR = "rgba(255,255,255,0.08)";
 const VOL_UP = "rgba(239,68,68,0.35)";
 const VOL_DOWN = "rgba(34,197,94,0.35)";
 
-export function KLineDialog({ trade, onClose }: KLineDialogProps) {
+export function KLineDialog({ trade, onClose , backtestStartDate, backtestEndDate }: KLineDialogProps) {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<ReturnType<
     typeof import("lightweight-charts").createChart
@@ -69,12 +71,11 @@ export function KLineDialog({ trade, onClose }: KLineDialogProps) {
     let klineData: KLineDataPoint[];
     try {
       // Extend range: 30 trading days before entry, 15 after exit
-      const entryDate = new Date(trade.entry_date);
-      const exitDate = new Date(trade.exit_date);
-      const startDate = new Date(entryDate);
-      startDate.setDate(startDate.getDate() - 45); // ~30 trading days
-      const endDate = new Date(exitDate);
-      endDate.setDate(endDate.getDate() + 22); // ~15 trading days
+      const startDate = new Date(backtestStartDate || trade.entry_date);
+      startDate.setDate(startDate.getDate() - 140); // 100 个交易日 ≈ 140 个日历日
+
+      const endDate = new Date(backtestEndDate || trade.exit_date);
+      endDate.setDate(endDate.getDate() + 140);
 
       const startStr = startDate.toISOString().split("T")[0];
       const endStr = endDate.toISOString().split("T")[0];

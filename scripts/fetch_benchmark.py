@@ -113,6 +113,15 @@ def validate(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 # --------------------------- 单个指数抓取 --------------------------- #
+
+INDEX_CHINESE_NAMES = {
+    "000300.SH": "沪深300",
+    "000001.SH": "上证指数",
+    "000905.SH": "中证500",
+    "399006.SZ": "创业板指",
+    "000688.SH": "科创50",
+}
+
 def fetch_index(
     ts_code: str,
     start: str,
@@ -139,6 +148,11 @@ def fetch_index(
             
             new_df = validate(new_df)
             new_df.to_csv(csv_path, index=False)
+            chinese_name = INDEX_CHINESE_NAMES.get(ts_code)
+            if chinese_name:
+                chinese_path = out_dir / f"{chinese_name}.csv"
+                new_df.to_csv(chinese_path, index=False)
+                logger.info("同时保存中文名文件: %s", chinese_path)
             logger.info("%s 数据已保存: %d 条记录", ts_code, len(new_df))
             break
             
@@ -170,7 +184,7 @@ def main():
     )
     
     # 其它
-    parser.add_argument("--out", default="./index_data", help="输出目录")
+    parser.add_argument("--out", default="./data/index", help="输出目录")
     
     args = parser.parse_args()
 

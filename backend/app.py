@@ -96,6 +96,21 @@ def init_db():
         conn.commit()
 
 
+def cleanup_stale_jobs():
+    """后端启动时，将所有卡在 RUNNING/PENDING 的任务强制标记为 FAILED。
+    这些是上次进程意外退出留下的僵尸记录。"""
+    db_execute(
+        """
+        UPDATE backtests
+        SET status = 'FAILED',
+            error = 'Server restarted while job was running',
+            finished_at = ?
+        WHERE status IN ('RUNNING', 'PENDING')
+        """,
+        (_now_iso(),),
+    )
+
+
 def db_execute(query: str, params: tuple = ()) -> None:
     with sqlite3.connect(DB_PATH) as conn:
         conn.execute(query, params)
@@ -238,6 +253,18 @@ class JobManager:
                     slippage_rate=float(payload.get("slippage_rate", 0.001)),
                     buy_config=buy_config,
                     log_callback=log_callback,
+                    # ── Score 百分位过滤 ──────────────────────────────────────
+                    score_filter_enabled=bool(payload.get("score_filter_enabled", False)),
+                    score_percentile_threshold=float(payload.get("score_percentile_threshold", 60.0)),
+                    score_min_history=int(payload.get("score_min_history", 20)),
+                    score_warmup_lookback_days=int(payload.get("score_warmup_lookback_days", 20)),
+                    # ── 换仓 (Rotation) ───────────────────────────────────────
+                    rotation_enabled=bool(payload.get("rotation_enabled", False)),
+                    rotation_min_stop_threshold=float(payload.get("rotation_min_loss", 0.05)),
+                    rotation_max_per_day=int(payload.get("rotation_max_per_day", 2)),
+                    rotation_score_ratio=float(payload.get("rotation_score_ratio", 1.2)),
+                    rotation_min_score_improvement=float(payload.get("rotation_min_score_improvement", 10.0)),
+                    rotation_no_score_policy=str(payload.get("rotation_no_score_policy", "skip")),
                 )
 
                 engine.load_data(
@@ -345,6 +372,7 @@ class JobManager:
 
 
 init_db()
+cleanup_stale_jobs()
 job_manager = JobManager()
 
 app = FastAPI(title="Backtest API", version="1.0.0")
