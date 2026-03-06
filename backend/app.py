@@ -15,8 +15,10 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 import sqlite3
 
+import duckdb
 import pandas as pd
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request, Response
+import httpx
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
@@ -35,6 +37,7 @@ CONFIGS_PATH = ROOT / "configs" / "buy_selectors.json"
 SELL_STRATEGIES_PATH = ROOT / "configs" / "sell_strategies.json"
 DB_PATH = ROOT / "backend" / "backtest_results.db"
 FRONTEND_DIR = ROOT / "frontend"
+INDICATORS_DB_PATH = ROOT / "data" / "indicators.duckdb"
 
 
 def _now_iso() -> str:
@@ -300,6 +303,7 @@ class JobManager:
                     trades=trades_df,
                     initial_capital=float(payload.get("initial_capital", 1000000)),
                     benchmark_name=benchmark_name if benchmark_name and benchmark_name != "none" else None,
+                    benchmark_data_dir=DATA_DIR / "index",
                 ).analyze()
 
                 score = compute_strategy_score(analysis)
@@ -384,17 +388,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-if FRONTEND_DIR.exists():
-    app.mount("/static", StaticFiles(directory=FRONTEND_DIR), name="static")
-
-
-@app.get("/")
-def root():
-    index = FRONTEND_DIR / "index.html"
-    if not index.exists():
-        raise HTTPException(status_code=404, detail="Frontend not found.")
-    return FileResponse(index)
 
 
 @app.get("/api/config")
@@ -539,36 +532,34 @@ def get_rankings(metric: str = "score"):
 
 @app.get("/api/kline/{code}")
 def get_kline(code: str, start: str = "", end: str = ""):
-    """Return OHLCV K-line data for a stock code."""
-    csv_path = DATA_DIR / f"{code}.csv"
-    if not csv_path.exists():
-        raise HTTPException(status_code=404, detail=f"Stock data not found for {code}")
+    """Return OHLCV K-line data from indicators.duckdb."""
     try:
-        df = pd.read_csv(csv_path)
-        if "date" not in df.columns:
-            raise HTTPException(status_code=400, detail="Invalid data format")
-        df["date"] = pd.to_datetime(df["date"])
-        df = df.sort_values("date")
+        con = duckdb.connect(str(INDICATORS_DB_PATH), read_only=True)
+        query = "SELECT date, open, high, low, close, volume FROM indicators WHERE code = ?"
+        params = [code]
         if start:
-            df = df[df["date"] >= pd.to_datetime(start)]
+            query += " AND date >= ?"
+            params.append(start)
         if end:
-            df = df[df["date"] <= pd.to_datetime(end)]
+            query += " AND date <= ?"
+            params.append(end)
+        query += " ORDER BY date"
+        df = con.execute(query, params).fetchdf()
+        con.close()
 
-        required_cols = ["date", "open", "high", "low", "close"]
-        for col in required_cols:
-            if col not in df.columns:
-                raise HTTPException(status_code=400, detail=f"Missing column: {col}")
+        if df.empty:
+            raise HTTPException(status_code=404, detail=f"Stock data not found for {code}")
 
         records = []
         for _, row in df.iterrows():
             rec: Dict[str, Any] = {
-                "time": row["date"].strftime("%Y-%m-%d"),
+                "time": str(row["date"])[:10],
                 "open": float(row["open"]),
                 "high": float(row["high"]),
                 "low": float(row["low"]),
                 "close": float(row["close"]),
             }
-            if "volume" in df.columns:
+            if row["volume"] is not None:
                 rec["volume"] = float(row["volume"])
             records.append(rec)
         return {"code": code, "data": records}
@@ -641,6 +632,7 @@ def get_backtest_analysis(backtest_id: str, benchmark: str = "none"):
             trades=trades_df,
             initial_capital=initial_capital,
             benchmark_name=benchmark_name,
+            benchmark_data_dir=DATA_DIR / "index",
         ).analyze()
 
         return {
@@ -652,20 +644,27 @@ def get_backtest_analysis(backtest_id: str, benchmark: str = "none"):
         raise HTTPException(status_code=500, detail=f"Failed to compute analysis: {str(e)}")
 
 
-@app.get("/api/benchmark")
-def get_benchmark(name: str, start: str, end: str):
-    bench_dir = DATA_DIR / "index"
-    bench_path = bench_dir / f"{name}.csv"
-    if not bench_path.exists():
-        raise HTTPException(status_code=404, detail="Benchmark data not found.")
-    df = pd.read_csv(bench_path)
-    if "date" not in df.columns or "close" not in df.columns:
-        raise HTTPException(status_code=400, detail="Invalid benchmark data format.")
-    df["date"] = pd.to_datetime(df["date"])
-    df = df[(df["date"] >= pd.to_datetime(start)) & (df["date"] <= pd.to_datetime(end))]
-    if df.empty:
-        return {"series": []}
-    base = float(df["close"].iloc[0])
-    df["nav"] = df["close"] / base
-    series = [{"date": d.strftime("%Y-%m-%d"), "nav": float(v)} for d, v in zip(df["date"], df["nav"])]
-    return {"series": series}
+NEXTJS_URL = "http://localhost:3000"
+
+@app.api_route(
+    "/{path:path}",
+    methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "HEAD"],
+    include_in_schema=False,
+)
+async def proxy_to_nextjs(path: str, request: Request):
+    
+    url = f"{NEXTJS_URL}/{path}"
+    headers = {k: v for k, v in request.headers.items() if k.lower() != "host"}
+    async with httpx.AsyncClient(follow_redirects=True, timeout=30) as client:
+        resp = await client.request(
+            method=request.method,
+            url=url,
+            headers=headers,
+            content=await request.body(),
+            params=dict(request.query_params),
+        )
+    return Response(
+        content=resp.content,
+        status_code=resp.status_code,
+        headers=dict(resp.headers),
+    )

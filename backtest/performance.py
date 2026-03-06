@@ -15,15 +15,13 @@ logger = logging.getLogger(__name__)
 
 # Benchmark index mappings
 BENCHMARK_INDICES = {
-    "沪深300": "000300_SH",
-    "上证指数": "000001_SH",
-    "中证500": "000905_SH",
-    "创业板指": "399006_SZ",
-    "科创50": "000688_SH"
+    "沪深300": "沪深300",
+    "上证指数": "上证指数",
+    "中证500": "中证500",
+    "创业板指": "创业板指",
+    "科创50": "科创50"
 }
-
-# Default benchmark directory
-BENCHMARK_DATA_DIR = Path(__file__).parent.parent / "index_data"
+BENCHMARK_DATA_DIR = Path(__file__).parent.parent / "data" / "index"
 
 
 class PerformanceAnalyzer:
@@ -447,6 +445,8 @@ class PerformanceAnalyzer:
         benchmark['date'] = pd.to_datetime(benchmark['date'])
 
         # Merge on date
+        equity['date'] = pd.to_datetime(equity['date'])
+        benchmark['date'] = pd.to_datetime(benchmark['date'])
         merged = pd.merge(
             equity[['date', 'total_value']],
             benchmark[['date', 'close']],

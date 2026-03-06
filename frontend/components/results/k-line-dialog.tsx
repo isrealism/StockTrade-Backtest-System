@@ -29,7 +29,7 @@ interface KLineDialogProps {
   backtestEndDate?: string;
 }
 
-/* ── Colours ────────────────────────────────────────── */
+/* ── 颜色常量 ── */
 const UP_COLOR = "#ef4444";
 const DOWN_COLOR = "#22c55e";
 const BG_COLOR = "#0f1117";
@@ -39,393 +39,245 @@ const BORDER_COLOR = "rgba(255,255,255,0.08)";
 const VOL_UP = "rgba(239,68,68,0.35)";
 const VOL_DOWN = "rgba(34,197,94,0.35)";
 
-export function KLineDialog({ trade, onClose , backtestStartDate, backtestEndDate }: KLineDialogProps) {
+export function KLineDialog({ trade, onClose, backtestStartDate, backtestEndDate }: KLineDialogProps) {
   const chartContainerRef = useRef<HTMLDivElement>(null);
-  const chartRef = useRef<ReturnType<
-    typeof import("lightweight-charts").createChart
-  > | null>(null);
+  const chartRef = useRef<any>(null);
   const tooltipRef = useRef<HTMLDivElement>(null);
-
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const isCancelledRef = useRef(false);
 
-  /* ── Build chart ──────────────────────────────────── */
   const initChart = useCallback(async () => {
     if (!trade || !chartContainerRef.current) return;
 
     setLoading(true);
     setError(null);
+    isCancelledRef.current = false;
 
-    // Dynamically import lightweight-charts
-    const { createChart, ColorType, CrosshairMode, LineStyle } = await import(
-      "lightweight-charts"
-    );
-
-    // Clean up previous chart
-    if (chartRef.current) {
-      chartRef.current.remove();
-      chartRef.current = null;
-    }
-
-    /* ── Fetch real K-line data ── */
-    let klineData: KLineDataPoint[];
     try {
-      // Extend range: 30 trading days before entry, 15 after exit
-      const startDate = new Date(backtestStartDate || trade.entry_date);
-      startDate.setDate(startDate.getDate() - 140); // 100 个交易日 ≈ 140 个日历日
+      const { createChart, ColorType, CrosshairMode } = await import("lightweight-charts");
+      if (isCancelledRef.current) return;
 
-      const endDate = new Date(backtestEndDate || trade.exit_date);
-      endDate.setDate(endDate.getDate() + 140);
+      // 1. 安全清理旧图表
+      if (chartRef.current) {
+        try {
+          chartRef.current.remove();
+        } catch (e) {
+          console.warn("Chart disposal handled:", e);
+        }
+        chartRef.current = null;
+      }
 
-      const startStr = startDate.toISOString().split("T")[0];
-      const endStr = endDate.toISOString().split("T")[0];
+      // 2. 日期计算 (往前/往后 140天确保覆盖100个交易日)
+      const baseStart = backtestStartDate || trade.entry_date;
+      const baseEnd = backtestEndDate || trade.exit_date;
+      const startDateObj = new Date(baseStart);
+      startDateObj.setDate(startDateObj.getDate() - 140);
+      const endDateObj = new Date(baseEnd);
+      endDateObj.setDate(endDateObj.getDate() + 140);
 
-      const resp = await getKLineData(trade.code, startStr, endStr);
-      klineData = resp.data;
-    } catch {
-      // Fallback: generate synthetic data if backend is unavailable
-      klineData = generateSyntheticData(trade);
-    }
+      const startStr = startDateObj.toISOString().split("T")[0];
+      const endStr = endDateObj.toISOString().split("T")[0];
 
-    if (klineData.length === 0) {
-      setError("暂无该股票的K线数据");
+      let klineData: KLineDataPoint[];
+      try {
+        const resp = await getKLineData(trade.code, startStr, endStr);
+        if (isCancelledRef.current) return;
+        klineData = resp.data;
+      } catch {
+        klineData = generateSyntheticData(trade);
+      }
+
+      if (!klineData || klineData.length === 0) {
+        setError("暂无该股票的K线数据");
+        setLoading(false);
+        return;
+      }
+
       setLoading(false);
-      return;
-    }
+      if (isCancelledRef.current || !chartContainerRef.current) return;
 
-    setLoading(false);
-
-    const container = chartContainerRef.current;
-    const chart = createChart(container, {
-      layout: {
-        background: { type: ColorType.Solid, color: BG_COLOR },
-        textColor: TEXT_COLOR,
-        fontSize: 11,
-        fontFamily: "'JetBrains Mono', monospace",
-      },
-      grid: {
-        vertLines: { color: GRID_COLOR },
-        horzLines: { color: GRID_COLOR },
-      },
-      crosshair: {
-        mode: CrosshairMode.Normal,
-        vertLine: {
-          color: "rgba(255,255,255,0.15)",
-          style: LineStyle.Dashed,
-          labelBackgroundColor: "rgba(30,34,45,0.95)",
+      // 3. 初始化图表
+      const chart = createChart(chartContainerRef.current, {
+        layout: {
+          background: { type: ColorType.Solid, color: BG_COLOR },
+          textColor: TEXT_COLOR,
+          fontSize: 11,
         },
-        horzLine: {
-          color: "rgba(255,255,255,0.15)",
-          style: LineStyle.Dashed,
-          labelBackgroundColor: "rgba(30,34,45,0.95)",
-        },
-      },
-      rightPriceScale: {
-        borderColor: BORDER_COLOR,
-        scaleMargins: { top: 0.05, bottom: 0.25 },
-      },
-      timeScale: {
-        borderColor: BORDER_COLOR,
-        timeVisible: false,
-        fixLeftEdge: true,
-        fixRightEdge: true,
-      },
-      width: container.clientWidth,
-      height: container.clientHeight,
-    });
+        grid: { vertLines: { color: GRID_COLOR }, horzLines: { color: GRID_COLOR } },
+        crosshair: { mode: CrosshairMode.Normal },
+        rightPriceScale: { borderColor: BORDER_COLOR, scaleMargins: { top: 0.1, bottom: 0.3 } },
+        timeScale: { borderColor: BORDER_COLOR, barSpacing: 10 },
+        width: chartContainerRef.current.clientWidth,
+        height: 480,
+      });
+      chartRef.current = chart;
 
-    chartRef.current = chart;
+      const candleSeries = chart.addCandlestickSeries({
+        upColor: UP_COLOR, downColor: DOWN_COLOR,
+        borderUpColor: UP_COLOR, borderDownColor: DOWN_COLOR,
+        wickUpColor: UP_COLOR, wickDownColor: DOWN_COLOR,
+      });
 
-    /* ── Candlestick series ── */
-    const candleSeries = chart.addCandlestickSeries({
-      upColor: UP_COLOR,
-      downColor: DOWN_COLOR,
-      borderUpColor: UP_COLOR,
-      borderDownColor: DOWN_COLOR,
-      wickUpColor: UP_COLOR,
-      wickDownColor: DOWN_COLOR,
-    });
+      const ohlcData = klineData.map(d => ({
+        time: d.time,
+        open: d.open, high: d.high, low: d.low, close: d.close
+      }));
+      candleSeries.setData(ohlcData as any);
 
-    const ohlcData = klineData.map((d) => ({
-      time: d.time as Parameters<typeof candleSeries.setData>[0][0]["time"],
-      open: d.open,
-      high: d.high,
-      low: d.low,
-      close: d.close,
-    }));
-    candleSeries.setData(ohlcData);
-
-    /* ── Volume histogram ── */
-    const hasVolume = klineData.some((d) => d.volume !== undefined && d.volume > 0);
-    if (hasVolume) {
       const volumeSeries = chart.addHistogramSeries({
         priceFormat: { type: "volume" },
         priceScaleId: "volume",
       });
+      chart.priceScale("volume").applyOptions({ scaleMargins: { top: 0.8, bottom: 0 } });
+      volumeSeries.setData(klineData.map(d => ({
+        time: d.time as any,
+        value: d.volume || 0,
+        color: d.close >= d.open ? VOL_UP : VOL_DOWN,
+      })));
 
-      chart.priceScale("volume").applyOptions({
-        scaleMargins: { top: 0.82, bottom: 0 },
-      });
+      // 4. 设置买卖标记
+      const markers = [];
+      if (klineData.some(d => d.time === trade.entry_date)) {
+        markers.push({
+          time: trade.entry_date, position: "belowBar" as any, color: UP_COLOR, shape: "arrowUp" as any, text: `B ${trade.entry_price.toFixed(2)}`
+        });
+      }
+      if (klineData.some(d => d.time === trade.exit_date)) {
+        markers.push({
+          time: trade.exit_date, position: "aboveBar" as any, color: DOWN_COLOR, shape: "arrowDown" as any, text: `S ${trade.exit_price.toFixed(2)}`
+        });
+      }
+      candleSeries.setMarkers(markers);
 
-      volumeSeries.setData(
-        klineData
-          .filter((d) => d.volume !== undefined)
-          .map((d) => ({
-            time: d.time as Parameters<typeof volumeSeries.setData>[0][0]["time"],
-            value: d.volume!,
-            color: d.close >= d.open ? VOL_UP : VOL_DOWN,
-          }))
-      );
-    }
+      // 5. 🌟 自动缩放至交易区间中心
+      const tradeDates = klineData.map(d => d.time);
+      const entryIdx = tradeDates.indexOf(trade.entry_date);
+      const exitIdx = tradeDates.indexOf(trade.exit_date);
 
-    /* ── Buy / Sell markers ── */
-    const markers: Parameters<typeof candleSeries.setMarkers>[0] = [];
+      if (entryIdx !== -1 && exitIdx !== -1) {
+        const fromIdx = Math.max(0, entryIdx - 15);
+        const toIdx = Math.min(tradeDates.length - 1, exitIdx + 15);
+        chart.timeScale().setVisibleRange({
+          from: tradeDates[fromIdx] as any,
+          to: tradeDates[toIdx] as any,
+        });
+      } else {
+        chart.timeScale().fitContent();
+      }
 
-    // Ensure entry_date exists in data
-    const entryExists = klineData.some((d) => d.time === trade.entry_date);
-    const exitExists = klineData.some((d) => d.time === trade.exit_date);
-
-    if (entryExists) {
-      markers.push({
-        time: trade.entry_date as typeof ohlcData[0]["time"],
-        position: "belowBar",
-        color: UP_COLOR,
-        shape: "arrowUp",
-        text: `B ${trade.entry_price.toFixed(2)}`,
-      });
-    }
-
-    if (exitExists) {
-      markers.push({
-        time: trade.exit_date as typeof ohlcData[0]["time"],
-        position: "aboveBar",
-        color: DOWN_COLOR,
-        shape: "arrowDown",
-        text: `S ${trade.exit_price.toFixed(2)}`,
-      });
-    }
-
-    // Sort markers by time (required by lightweight-charts)
-    markers.sort((a, b) => (a.time < b.time ? -1 : a.time > b.time ? 1 : 0));
-    candleSeries.setMarkers(markers);
-
-    /* ── Crosshair tooltip ── */
-    const tooltip = tooltipRef.current;
-    if (tooltip) {
-      chart.subscribeCrosshairMove((param) => {
-        if (
-          !param.time ||
-          !param.point ||
-          param.point.x < 0 ||
-          param.point.y < 0
-        ) {
+      // 6. 🌟 修复十字线悬停数据
+      const tooltip = tooltipRef.current;
+      chart.subscribeCrosshairMove((param: any) => {
+        if (!tooltip || !chartContainerRef.current) return;
+        if (!param.time || !param.point || param.point.x < 0 || param.point.y < 0) {
           tooltip.style.display = "none";
           return;
         }
 
-        const data = param.seriesData.get(candleSeries) as
-          | { open: number; high: number; low: number; close: number }
-          | undefined;
-
+        const data = param.seriesData.get(candleSeries) as any;
         if (!data) {
           tooltip.style.display = "none";
           return;
         }
 
-        const change = data.close - data.open;
-        const changePct = (change / data.open) * 100;
-        const isUp = change >= 0;
+        const isUp = data.close >= data.open;
         const color = isUp ? UP_COLOR : DOWN_COLOR;
+        const changePct = ((data.close - data.open) / data.open) * 100;
+        const volData = param.seriesData.get(volumeSeries) as any;
 
-        // Find volume for this date
-        const dateStr = param.time as string;
-        const volEntry = klineData.find((d) => d.time === dateStr);
-        const volume = volEntry?.volume;
-
+        tooltip.style.display = "block";
         tooltip.innerHTML = `
-          <div style="font-size:11px;color:${TEXT_COLOR};margin-bottom:4px;">${dateStr}</div>
-          <div style="display:grid;grid-template-columns:auto 1fr;gap:2px 10px;font-size:11px;">
-            <span style="color:${TEXT_COLOR}">开</span><span style="color:${data.close >= data.open ? UP_COLOR : DOWN_COLOR};text-align:right;font-family:'JetBrains Mono',monospace">${data.open.toFixed(2)}</span>
-            <span style="color:${TEXT_COLOR}">高</span><span style="color:${UP_COLOR};text-align:right;font-family:'JetBrains Mono',monospace">${data.high.toFixed(2)}</span>
-            <span style="color:${TEXT_COLOR}">低</span><span style="color:${DOWN_COLOR};text-align:right;font-family:'JetBrains Mono',monospace">${data.low.toFixed(2)}</span>
-            <span style="color:${TEXT_COLOR}">收</span><span style="color:${color};text-align:right;font-family:'JetBrains Mono',monospace">${data.close.toFixed(2)}</span>
-            <span style="color:${TEXT_COLOR}">涨跌</span><span style="color:${color};text-align:right;font-family:'JetBrains Mono',monospace">${isUp ? "+" : ""}${changePct.toFixed(2)}%</span>
-            ${volume !== undefined ? `<span style="color:${TEXT_COLOR}">量</span><span style="text-align:right;color:rgba(255,255,255,0.7);font-family:'JetBrains Mono',monospace">${formatVolume(volume)}</span>` : ""}
+          <div style="font-size:12px;color:#fff;margin-bottom:4px;font-weight:bold">${param.time}</div>
+          <div style="display:grid;grid-template-columns:auto 1fr;gap:4px 12px;font-size:11px;font-family:monospace">
+            <span style="color:${TEXT_COLOR}">开</span><span style="color:#fff;text-align:right">${data.open.toFixed(2)}</span>
+            <span style="color:${TEXT_COLOR}">高</span><span style="color:${UP_COLOR};text-align:right">${data.high.toFixed(2)}</span>
+            <span style="color:${TEXT_COLOR}">低</span><span style="color:${DOWN_COLOR};text-align:right">${data.low.toFixed(2)}</span>
+            <span style="color:${TEXT_COLOR}">收</span><span style="color:${color};text-align:right">${data.close.toFixed(2)}</span>
+            <span style="color:${TEXT_COLOR}">幅度</span><span style="color:${color};text-align:right">${isUp ? '+' : ''}${changePct.toFixed(2)}%</span>
+            <span style="color:${TEXT_COLOR}">成交</span><span style="color:#fff;text-align:right">${volData ? formatVolume(volData.value) : '-'}</span>
           </div>
         `;
-        tooltip.style.display = "block";
 
-        // Position tooltip - keep it top-left within chart bounds
-        const containerRect = container.getBoundingClientRect();
-        let left = param.point.x + 16;
-        let top = param.point.y - 10;
-
-        // Prevent overflow right
-        if (left + 160 > containerRect.width) {
-          left = param.point.x - 170;
-        }
-        // Prevent overflow bottom
-        if (top + 140 > containerRect.height) {
-          top = containerRect.height - 150;
-        }
-        if (top < 0) top = 8;
-
+        const containerRect = chartContainerRef.current.getBoundingClientRect();
+        let left = param.point.x + 20;
+        if (left + 160 > containerRect.width) left = param.point.x - 170;
         tooltip.style.left = `${left}px`;
-        tooltip.style.top = `${top}px`;
+        tooltip.style.top = `20px`;
       });
-    }
-
-    chart.timeScale().fitContent();
-
-    /* ── Resize observer ── */
-    const resizeObserver = new ResizeObserver(() => {
-      if (chartContainerRef.current) {
-        chart.applyOptions({
-          width: chartContainerRef.current.clientWidth,
-          height: chartContainerRef.current.clientHeight,
-        });
-      }
-    });
-    resizeObserver.observe(container);
-
-    return () => {
-      resizeObserver.disconnect();
-      chart.remove();
-    };
-  }, [trade]);
-
-  useEffect(() => {
-    if (trade) {
-      let cleanup: (() => void) | undefined;
-      let cancelled = false;
-
-      // Delay chart initialization to ensure DOM is ready
-      const timeout = setTimeout(async () => {
-        const result = await initChart();
-        if (!cancelled) {
-          cleanup = result;
-        } else {
-          // If effect was cleaned up before async initChart completed, call cleanup immediately
-          result?.();
-        }
-      }, 80);
 
       return () => {
-        cancelled = true;
-        clearTimeout(timeout);
-        // Call cleanup if chart was initialized
-        cleanup?.();
+        if (chartRef.current) {
+          try { chartRef.current.remove(); } catch(e) {}
+          chartRef.current = null;
+        }
       };
+    } catch (e) {
+      console.error(e);
+      setLoading(false);
     }
+  }, [trade, backtestStartDate, backtestEndDate]);
+
+  useEffect(() => {
+    let cleanup: any;
+    let timer: NodeJS.Timeout | undefined; // 🌟 提升作用域
+    isCancelledRef.current = false;
+
+    if (trade) {
+      timer = setTimeout(async () => {
+        const result = await initChart();
+        if (isCancelledRef.current) {
+          result?.();
+        } else {
+          cleanup = result;
+        }
+      }, 100);
+    }
+    return () => {
+      isCancelledRef.current = true;
+      if (timer) clearTimeout(timer);
+      if (cleanup) cleanup();
+    };
   }, [trade, initChart]);
 
   if (!trade) return null;
 
   return (
     <Dialog open={!!trade} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-5xl border-border bg-card p-0">
-        <DialogTitle className="sr-only">
-          {trade.code} K线图
-        </DialogTitle>
-
-        {/* Header */}
+      <DialogContent className="max-w-5xl border-border bg-card p-0 overflow-hidden">
+        <DialogTitle className="sr-only">{trade.code} K线图</DialogTitle>
         <div className="flex items-center justify-between border-b border-border px-5 py-3">
           <div className="flex items-center gap-3">
-            <span className="font-mono text-base font-semibold text-primary">
-              {trade.code}
-            </span>
-            <span className="rounded bg-secondary px-2 py-0.5 text-xs text-muted-foreground">
-              {trade.buy_strategy}
-            </span>
+            <span className="font-mono text-base font-semibold text-primary">{trade.code}</span>
+            <span className="rounded bg-secondary px-2 py-0.5 text-xs text-muted-foreground">{trade.buy_strategy}</span>
           </div>
-          <div className="flex items-center gap-5 text-xs">
-            <div className="flex flex-col items-end gap-0.5">
-              <span className="text-muted-foreground">买入</span>
-              <span className="font-mono text-foreground">
-                {trade.entry_date} @ <span className="text-[#22c55e]">{trade.entry_price.toFixed(2)}</span>
-              </span>
-            </div>
-            <div className="flex flex-col items-end gap-0.5">
-              <span className="text-muted-foreground">卖出</span>
-              <span className="font-mono text-foreground">
-                {trade.exit_date} @ <span className="text-[#ef4444]">{trade.exit_price.toFixed(2)}</span>
-              </span>
-            </div>
-            <div className="flex flex-col items-end gap-0.5">
-              <span className="text-muted-foreground">收益</span>
-              <span
-                className={`font-mono font-semibold ${
-                  trade.net_pnl_pct >= 0
-                    ? "text-[#22c55e]"
-                    : "text-[#ef4444]"
-                }`}
-              >
-                {trade.net_pnl_pct >= 0 ? "+" : ""}
-                {trade.net_pnl_pct.toFixed(2)}%
-              </span>
-            </div>
+          <div className="flex items-center gap-5 text-xs text-right">
+             <div><div className="text-muted-foreground">买入</div><div className="font-mono text-foreground">{trade.entry_date} @ <span style={{color: UP_COLOR}}>{trade.entry_price.toFixed(2)}</span></div></div>
+             <div><div className="text-muted-foreground">卖出</div><div className="font-mono text-foreground">{trade.exit_date} @ <span style={{color: DOWN_COLOR}}>{trade.exit_price.toFixed(2)}</span></div></div>
+             <div><div className="text-muted-foreground">收益</div><div className={`font-mono font-bold ${trade.net_pnl_pct >= 0 ? 'text-[#22c55e]' : 'text-[#ef4444]'}`}>{trade.net_pnl_pct >= 0 ? '+' : ''}{trade.net_pnl_pct.toFixed(2)}%</div></div>
           </div>
         </div>
 
-        {/* Chart area */}
         <div className="relative">
           <div ref={chartContainerRef} className="h-[480px] w-full" />
-
-          {/* Floating tooltip */}
-          <div
-            ref={tooltipRef}
-            className="pointer-events-none absolute z-50 hidden rounded-md border border-border/60 bg-card/95 px-3 py-2 shadow-xl backdrop-blur-sm"
-            style={{ minWidth: 150 }}
-          />
-
-          {/* Loading state */}
+          <div ref={tooltipRef} className="pointer-events-none absolute z-50 hidden rounded border border-white/10 bg-[#1e222d]/90 px-3 py-2 shadow-2xl backdrop-blur-md" style={{ width: '160px' }} />
           {loading && (
-            <div className="absolute inset-0 flex items-center justify-center bg-card/80">
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                <span>加载K线数据...</span>
-              </div>
+            <div className="absolute inset-0 flex items-center justify-center bg-card/60 backdrop-blur-sm">
+              <Loader2 className="h-6 w-6 animate-spin text-primary" />
             </div>
           )}
-
-          {/* Error state */}
-          {error && (
-            <div className="absolute inset-0 flex items-center justify-center bg-card/80">
-              <span className="text-sm text-muted-foreground">{error}</span>
-            </div>
-          )}
+          {error && <div className="absolute inset-0 flex items-center justify-center text-destructive">{error}</div>}
         </div>
-
-        {/* Footer */}
+        
         <div className="flex flex-wrap items-center gap-6 border-t border-border px-5 py-2.5 text-xs text-muted-foreground">
-          <span>
-            持仓:{" "}
-            <span className="font-mono text-foreground">
-              {trade.holding_days}天
-            </span>
-          </span>
-          <span>
-            数量:{" "}
-            <span className="font-mono text-foreground">
-              {trade.shares.toLocaleString()}股
-            </span>
-          </span>
-          <span className="flex-1 truncate">
-            退出: {trade.exit_reason}
-          </span>
-          <span className="flex items-center gap-2">
-            <span className="inline-block h-2 w-2 rounded-full bg-[#22c55e]" />
-            <span>B 买入</span>
-            <span className="ml-2 inline-block h-2 w-2 rounded-full bg-[#ef4444]" />
-            <span>S 卖出</span>
-          </span>
+          <span>持仓: <span className="font-mono text-foreground">{trade.holding_days}天</span></span>
+          <span>数量: <span className="font-mono text-foreground">{trade.shares.toLocaleString()}股</span></span>
+          <span className="flex-1 truncate text-foreground">原因: {trade.exit_reason}</span>
         </div>
       </DialogContent>
     </Dialog>
   );
 }
-
-/* ── Helpers ─────────────────────────────────────────── */
 
 function formatVolume(vol: number): string {
   if (vol >= 1e8) return (vol / 1e8).toFixed(2) + "亿";
@@ -433,64 +285,32 @@ function formatVolume(vol: number): string {
   return vol.toLocaleString();
 }
 
-/** Fallback synthetic data when the API is unreachable */
-function generateSyntheticData(trade: Trade): KLineDataPoint[] {
+function generateSyntheticData(trade: Trade): any[] {
   const entryDate = new Date(trade.entry_date);
   const exitDate = new Date(trade.exit_date);
-
   const startDate = new Date(entryDate);
-  startDate.setDate(startDate.getDate() - 40);
+  startDate.setDate(startDate.getDate() - 140);
   const endDate = new Date(exitDate);
-  endDate.setDate(endDate.getDate() + 15);
+  endDate.setDate(endDate.getDate() + 140);
 
-  const data: KLineDataPoint[] = [];
-  let price = trade.entry_price * (0.88 + Math.random() * 0.15);
+  const data = [];
+  let price = trade.entry_price * 0.9;
   const current = new Date(startDate);
 
   while (current <= endDate) {
     if (current.getDay() !== 0 && current.getDay() !== 6) {
       const timeStr = current.toISOString().split("T")[0];
-
-      if (timeStr === trade.entry_date) {
-        data.push({
-          time: timeStr,
-          open: trade.entry_price * 0.995,
-          high: trade.entry_price * 1.02,
-          low: trade.entry_price * 0.98,
-          close: trade.entry_price,
-          volume: Math.round(500000 + Math.random() * 2000000),
-        });
-        price = trade.entry_price;
-      } else if (timeStr === trade.exit_date) {
-        data.push({
-          time: timeStr,
-          open: trade.exit_price * 1.005,
-          high: Math.max(trade.exit_price * 1.025, trade.exit_price),
-          low: Math.min(trade.exit_price * 0.975, trade.exit_price),
-          close: trade.exit_price,
-          volume: Math.round(800000 + Math.random() * 3000000),
-        });
-        price = trade.exit_price;
-      } else {
-        const change = (Math.random() - 0.48) * price * 0.035;
-        const open = price;
-        const close = Math.max(0.01, price + change);
-        const high = Math.max(open, close) + Math.random() * price * 0.012;
-        const low =
-          Math.min(open, close) - Math.random() * price * 0.012;
-        data.push({
-          time: timeStr,
-          open: Math.max(0.01, open),
-          high: Math.max(0.01, high),
-          low: Math.max(0.01, low),
-          close,
-          volume: Math.round(200000 + Math.random() * 1500000),
-        });
-        price = close;
-      }
+      const change = (Math.random() - 0.48) * price * 0.03;
+      const open = price;
+      const close = price + change;
+      data.push({
+        time: timeStr,
+        open, high: Math.max(open, close) + 0.5, low: Math.min(open, close) - 0.5, close,
+        volume: Math.round(1000000 + Math.random() * 5000000)
+      });
+      price = close;
     }
     current.setDate(current.getDate() + 1);
   }
-
   return data;
 }
