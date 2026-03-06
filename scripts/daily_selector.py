@@ -56,6 +56,7 @@ SIGNAL_DIR = DATA_DIR / "signals"
 STOCKLIST  = ROOT / "stocklist.csv"
 BUY_CONFIG = ROOT / "configs" / "buy_selectors.json"
 DB_PATH    = Path(os.environ.get("DB_PATH", str(ROOT / "data" / "indicators.duckdb")))
+INSTANCE_CONF_DIR = ROOT / "configs" / "instances"
 
 sys.path.insert(0, str(ROOT))
 
@@ -590,8 +591,13 @@ def load_data_from_db(start_date: str, end_date: str, lookback_days: int = 250) 
 # 五、选股器
 # ══════════════════════════════════════════════════════════════════════════════
 
-def _load_selector_config() -> List[Dict[str, Any]]:
-    with BUY_CONFIG.open(encoding="utf-8") as f:
+def _load_selector_config(config_path: Path) -> List[Dict[str, Any]]:
+    """根据传入的路径加载对应的策略配置"""
+    if not config_path.exists():
+        logger.warning(f"配置路径 {config_path} 不存在，使用默认配置")
+        config_path = BUY_CONFIG
+        
+    with config_path.open(encoding="utf-8") as f:
         raw = json.load(f)
     if isinstance(raw, list):
         return raw
@@ -610,12 +616,13 @@ def _instantiate_selector(cfg: Dict[str, Any]):
 def run_selectors_for_date(
     data: Dict[str, pd.DataFrame],
     trade_date: pd.Timestamp,
+    config_path: Path,
 ) -> Dict[str, List[str]]:
     """在给定的数据集上运行所有激活 Selector，返回 {alias: codes, "__all__": merged}"""
     results:   Dict[str, List[str]] = {}
     all_codes: set = set()
 
-    for cfg in _load_selector_config():
+    for cfg in _load_selector_config(config_path):
         if not cfg.get("activate", True):
             continue
         try:
@@ -760,51 +767,62 @@ def main() -> None:
         # ── 5. 从 DuckDB 一次性加载所有数据（含 lookback）────────────────
         data = load_data_from_db(start_date, end_date, lookback_days=args.lookback_days)
 
-        # ── 6. 逐日运行 Selector ──────────────────────────────────────────
-        all_results: Dict[str, Dict[str, List[str]]] = {}   # {date: {alias: codes}}
+         # 🌟 新增：获取所有实例配置
+        instance_files = list(INSTANCE_CONF_DIR.glob("selectors_*.json"))
+        if not instance_files:
+            instance_files = [BUY_CONFIG]
 
-        for date in trade_dates:
-            logger.info("── 选股日期：%s ──", date)
-            results = run_selectors_for_date(data, pd.to_datetime(date))
-            all_results[date] = results
-            save_signal(results, date)
-            logger.info(
-                "  合并共 %d 只：%s",
-                len(results["__all__"]),
-                " ".join(results["__all__"]) or "无",
-            )
+        # 🌟 开启实例循环：针对每个群/个人独立运行
+        for conf_path in instance_files:
+            # 提取 target_id
+            target_id = conf_path.stem.replace("selectors_", "") if "selectors_" in conf_path.stem else None
+            logger.info(f"▶️ 正在为目标 [{target_id or '默认'}] 运行选股...")       
 
-            # 若 --push-each-date，逐日推送（补跑历史时通常不需要）
-            if args.push_each_date and date != end_date:
-                extra = _build_feishu_extra(results)
-                if args.dry_run:
-                    logger.info("[dry-run] %s 飞书内容：\n%s", date, extra)
+            # ── 6. 逐日运行 Selector ──────────────────────────────────────────
+            all_results: Dict[str, Dict[str, List[str]]] = {}   # {date: {alias: codes}}
+
+            for date in trade_dates:
+                logger.info("── 选股日期：%s ──", date)
+                results = run_selectors_for_date(data, pd.to_datetime(date),conf_path)
+                all_results[date] = results
+                save_signal(results, date)
+                logger.info(
+                    "  合并共 %d 只：%s",
+                    len(results["__all__"]),
+                    " ".join(results["__all__"]) or "无",
+                )
+
+                # 若 --push-each-date，逐日推送（补跑历史时通常不需要）
+                if args.push_each_date and date != end_date:
+                    extra = _build_feishu_extra(results)
+                    if args.dry_run:
+                        logger.info("[dry-run] %s 飞书内容：\n%s", date, extra)
+                    else:
+                        send_signal(results, trade_date=date,chat_id=target_id)
+
+            # ── 7. 只对 end_date 推送汇总飞书 ───────────────────────────────
+            end_results = all_results.get(end_date, {})
+            if not end_results:
+                logger.warning("end_date %s 没有选股结果（非交易日？）", end_date)
+            else:
+                # 若区间 > 1 天，在飞书消息里附上每日摘要
+                if len(trade_dates) > 1:
+                    summary_lines = [f"📅 区间：{start_date} ~ {end_date}，共 {len(trade_dates)} 个交易日\n"]
+                    for d in trade_dates:
+                        r = all_results.get(d, {})
+                        n = len(r.get("__all__", []))
+                        summary_lines.append(f"  {d}：{n} 只")
+                    summary_lines.append("")
+                    summary = "\n".join(summary_lines)
+                    extra = summary + _build_feishu_extra(end_results)
                 else:
-                    send_signal(results, trade_date=date)
+                    extra = _build_feishu_extra(end_results)
 
-        # ── 7. 只对 end_date 推送汇总飞书 ───────────────────────────────
-        end_results = all_results.get(end_date, {})
-        if not end_results:
-            logger.warning("end_date %s 没有选股结果（非交易日？）", end_date)
-        else:
-            # 若区间 > 1 天，在飞书消息里附上每日摘要
-            if len(trade_dates) > 1:
-                summary_lines = [f"📅 区间：{start_date} ~ {end_date}，共 {len(trade_dates)} 个交易日\n"]
-                for d in trade_dates:
-                    r = all_results.get(d, {})
-                    n = len(r.get("__all__", []))
-                    summary_lines.append(f"  {d}：{n} 只")
-                summary_lines.append("")
-                summary = "\n".join(summary_lines)
-                extra = summary + _build_feishu_extra(end_results)
-            else:
-                extra = _build_feishu_extra(end_results)
-
-            if args.dry_run:
-                logger.info("[dry-run] 飞书推送（%s）：\n%s", end_date, extra)
-            else:
-                send_signal(end_results, trade_date=end_date)
-                logger.info("飞书推送完成 ✅（%s）", end_date)
+                if args.dry_run:
+                    logger.info("[dry-run] {target_id} 飞书推送（%s）：\n%s", end_date, extra)
+                else:
+                    send_signal(end_results, trade_date=end_date,chat_id=target_id)
+                    logger.info("{target_id} 飞书推送完成 ✅（%s）", end_date)
 
     except Exception as e:
         logger.error("任务异常：\n%s", traceback.format_exc())

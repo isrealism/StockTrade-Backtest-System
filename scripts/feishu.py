@@ -65,6 +65,7 @@ ROOT       = Path(__file__).resolve().parent.parent
 BUY_CONFIG = Path(os.environ.get("BUY_CONFIG", str(ROOT / "configs" / "buy_selectors.json")))
 SIGNAL_DIR = Path(os.environ.get("SIGNAL_DIR", str(ROOT / "data" / "signals")))
 STOCKLIST  = Path(os.environ.get("STOCKLIST",  str(ROOT / "stocklist.csv")))
+INSTANCE_CONF_DIR = ROOT / "configs" / "instances"
 
 # ── 环境变量 ──────────────────────────────────────────────────────────────────
 WEBHOOK_URL   = os.environ.get("FEISHU_WEBHOOK_URL", "")
@@ -105,63 +106,95 @@ def load_name_map() -> Dict[str, str]:
 
 def load_signal_for_date(query_date: str) -> Dict[str, List[str]]:
     """
-    读取 data/signals/{query_date}-{alias}.txt，
-    返回 {alias: [code, ...], "__all__": [...]}。
-    query_date: YYYY-MM-DD
+    适配：2026-01-07-战法名.txt 格式的文件读取
     """
     results: Dict[str, List[str]] = {}
     if not SIGNAL_DIR.exists():
         return results
-    for fp in sorted(SIGNAL_DIR.glob(f"{query_date}-*.txt")):
-        alias = fp.stem[len(query_date) + 1:]   # "2025-06-10-少妇战法" → "少妇战法"
-        codes = [c.strip() for c in fp.read_text(encoding="utf-8").splitlines() if c.strip()]
-        if alias == "all":
-            results["__all__"] = codes
-        else:
-            results[alias] = codes
+
+    date_str = query_date.split(' ')[0]
+
+    # 确保匹配 2026-01-07-*
+    search_pattern = f"{date_str}-*.txt"
+    files = list(SIGNAL_DIR.glob(search_pattern))
+    
+    logger.info(f"🔍 历史查询：在 {SIGNAL_DIR} 匹配模式 {search_pattern}，找到 {len(files)} 个文件")
+
+    for fp in sorted(files):
+        # 1. 提取战法名：去掉日期前缀和后缀
+        # filename: 2026-01-07-少妇战法
+        filename = fp.stem
+        alias = filename.replace(f"{date_str}-", "")
+        
+        try:
+            # 读取股票代码列表
+            codes = [c.strip() for c in fp.read_text(encoding="utf-8").splitlines() if c.strip()]
+            if not codes:
+                continue
+            
+            # 2. 填充结果字典
+            if alias == "all":
+                # all.txt 作为汇总，但为了展示，我们更需要具体的战法 Key
+                results["__all__"] = list(set(results.get("__all__", []) + codes))
+            else:
+                results[alias] = codes
+                # 同时把具体战法的股票也加进汇总里，确保 __all__ 始终完整
+                results["__all__"] = list(set(results.get("__all__", []) + codes))
+                
+        except Exception as e:
+            logger.error(f"解析文件 {fp.name} 失败: {e}")
+
+    # 打印一下结果，方便在日志里看查到了什么
+    if results:
+        logger.info(f"✅ 成功加载 {len(results)-1} 种战法的信号记录")
+    else:
+        logger.warning(f"❌ 未能在目录下找到日期 {query_date} 的有效信号内容")
+        
     return results
 
 
-def read_selector_configs() -> List[Dict[str, Any]]:
-    """读取 buy_selectors.json，返回 selectors 列表。"""
-    if not BUY_CONFIG.exists():
-        return []
-    with BUY_CONFIG.open(encoding="utf-8") as f:
+def get_config_path(target_id: str) -> Path:
+    """根据 ID 获取专属配置文件路径，不存在则从模板复制"""
+    INSTANCE_CONF_DIR.mkdir(parents=True, exist_ok=True)
+    path = INSTANCE_CONF_DIR / f"selectors_{target_id}.json"
+    
+    if not path.exists():
+        import shutil
+        # BUY_CONFIG 此时作为“母版”，如果子版不存在，就拷一份过去
+        shutil.copy(BUY_CONFIG, path)
+    return path
+
+
+def read_selector_configs(target_id: str) -> List[Dict[str, Any]]:
+    """读取指定 ID 的配置"""
+    path = get_config_path(target_id)
+    with path.open(encoding="utf-8") as f:
         raw = json.load(f)
     return raw if isinstance(raw, list) else raw.get("selectors", [])
 
 
-def toggle_selector(alias: str) -> Tuple[Optional[bool], str]:
-    """
-    切换指定策略的 activate 状态并写回 buy_selectors.json。
-    Returns: (new_activate_state, 提示文字)  — 找不到时返回 (None, msg)
-    """
+def toggle_selector(alias: str, target_id: str) -> Tuple[Optional[bool], str]:
+    """切换指定群组的策略状态"""
+    path = get_config_path(target_id)
     with _config_lock:
-        if not BUY_CONFIG.exists():
-            return None, f"配置文件不存在：{BUY_CONFIG}"
-
-        with BUY_CONFIG.open(encoding="utf-8") as f:
+        with path.open(encoding="utf-8") as f:
             raw = json.load(f)
 
-        is_list   = isinstance(raw, list)
+        is_list = isinstance(raw, list)
         selectors = raw if is_list else raw.get("selectors", [])
 
         for sel in selectors:
             if sel.get("alias") == alias or sel.get("class") == alias:
-                new_state       = not sel.get("activate", True)
+                new_state = not sel.get("activate", True)
                 sel["activate"] = new_state
                 break
         else:
             return None, f"未找到策略：{alias}"
 
-        if not is_list:
-            raw["selectors"] = selectors
-
-        with BUY_CONFIG.open("w", encoding="utf-8") as f:
-            json.dump(raw if not is_list else selectors, f, ensure_ascii=False, indent=2)
+        with path.open("w", encoding="utf-8") as f:
+            json.dump(raw, f, ensure_ascii=False, indent=2)
 
     state_str = "🟢 已上线" if new_state else "⭕ 已下线"
-    logger.info("策略 [%s] → %s", alias, state_str)
     return new_state, f"策略「{alias}」{state_str}"
 
 
@@ -178,10 +211,6 @@ def _normalize_date(s: str) -> str:
     except Exception:
         return s
 
-
-# ══════════════════════════════════════════════════════════════════════════════
-# 二、消息正文构建
-# ══════════════════════════════════════════════════════════════════════════════
 
 # ══════════════════════════════════════════════════════════════════════════════
 # 二、消息正文构建
@@ -214,15 +243,31 @@ def _build_signal_text(
         f"共 {count} 只股票",
     ]
 
+    ordered_aliases = [
+        "少妇战法",
+        "SuperB1战法",
+        "补票战法",
+        "填坑战法",
+        "上穿60放量战法",
+        "暴力K战法"
+    ]
+
     selector_idx = 1
-    for alias, codes in results.items():
-        if alias == "__all__":
+
+    # 按指定顺序遍历
+    for alias in ordered_aliases:
+        # 如果这个战法在本次结果中不存在，则跳过（或者你可以选择显示 0 只）
+        if alias not in results:
+            # 如果你想即便没跑这个战法也要显示，可以取消下面三行的注释
+            # lines.append("")
+            # lines.append(f"{selector_idx}. {alias}（未运行）：")
+            # selector_idx += 1
             continue
             
+        codes = results[alias]
         lines.append("")
         lines.append(f"{selector_idx}. {alias}（{len(codes)} 只）：")
         
-        # 如果该战法没有选出股票，显示“无”而不是直接跳过
         if not codes:
             lines.append("   无")
         else:
@@ -231,6 +276,15 @@ def _build_signal_text(
                 name_str = f"  {name}" if name else ""
                 lines.append(f"   {stock_idx}. - {code}{name_str}")
                 
+        selector_idx += 1
+
+    # 处理那些不在上述“固定顺序”名单里、但实际跑出了结果的额外战法（防御性逻辑）
+    for alias, codes in results.items():
+        if alias == "__all__" or alias in ordered_aliases:
+            continue
+        lines.append("")
+        lines.append(f"{selector_idx}. {alias}（{len(codes)} 只）：")
+        # ... (后续逻辑同上)
         selector_idx += 1
 
     return "\n".join(lines)
@@ -284,17 +338,15 @@ def _signal_card(
     }
 
 
-def _management_card() -> dict:
+def _management_card(target_id:str) -> dict:
     """
     构建策略管理卡片。
     每个策略显示名称、当前状态，以及一个切换按钮。
     """
-    selectors = read_selector_configs()
-    elements: List[dict] = [
-        {
-            "tag":  "div",
-            "text": {"tag": "lark_md", "content": "**⚙️ 策略管理**\n点击按钮切换上线 / 下线状态"},
-        },
+    selectors = read_selector_configs(target_id)
+    
+    elements = [
+        {"tag": "div", "text": {"tag": "lark_md", "content": f"**⚙️ 策略管理 ({target_id[:8]}...)**"}},
         {"tag": "hr"},
     ]
 
@@ -316,7 +368,7 @@ def _management_card() -> dict:
                     "tag":   "button",
                     "text":  {"tag": "plain_text", "content": f"{btn_text} {alias}"},
                     "type":  btn_type,
-                    "value": {"action": "toggle_selector", "alias": alias},
+                    "value": {"action": "toggle_selector", "alias": alias, "target_id": target_id},
                 }
             ],
         })
@@ -479,29 +531,54 @@ def _get_tenant_token() -> str:
 
 
 def _post_bot(card: dict, open_id: Optional[str] = None) -> None:
-    """通过 Bot API 向群发送交互卡片（支持按钮回调）。"""
-    cid = open_id or CHAT_ID
+    """
+    通过 Bot API 发送卡片。
+    兼容个人 (ou_xxx) 和群聊 (oc_xxx)。
+    """
+    # 1. 确定目标 ID（优先使用传入的，否则读环境变量）
+    cid = open_id or os.environ.get("FEISHU_CHAT_ID", "")
     if not cid:
-        raise EnvironmentError("FEISHU_CHAT_ID 未设置")
+        logger.error("未找到有效的 FEISHU_CHAT_ID")
+        return
+
     token = _get_tenant_token()
-    resp  = requests.post(
-        "https://open.feishu.cn/open-apis/im/v1/messages?receive_id_type=open_id",
-        headers={
-            "Content-Type":  "application/json",
-            "Authorization": f"Bearer {token}",
-        },
-        json={
-            "receive_id": cid,
-            "msg_type":   "interactive",
-            "content":    json.dumps(card.get("card", card), ensure_ascii=False),
-        },
-        timeout=10,
-    )
-    resp.raise_for_status()
-    data = resp.json()
-    if data.get("code", 0) != 0:
-        raise RuntimeError(f"Bot API 发送失败：{data}")
-    logger.info("飞书 Bot API 发送成功")
+    
+    # 2. 支持逗号分隔的多 ID 处理
+    target_ids = [i.strip() for i in cid.split(",") if i.strip()]
+    
+    for target in target_ids:
+        # 🌟 关键点：自动识别 ID 类型
+        # 如果是 oc_ 开头，类型设为 chat_id；否则默认为 open_id
+        receive_id_type = "chat_id" if target.startswith("oc_") else "open_id"
+        
+        try:
+            # 🌟 URL 里的 receive_id_type 参数根据识别结果动态变化
+            url = f"https://open.feishu.cn/open-apis/im/v1/messages?receive_id_type={receive_id_type}"
+            
+            resp = requests.post(
+                url,
+                headers={
+                    "Content-Type":  "application/json",
+                    "Authorization": f"Bearer {token}",
+                },
+                json={
+                    "receive_id": target,  # 这里的 target 对应上方的类型
+                    "msg_type":   "interactive",
+                    "content":    json.dumps(card.get("card", card), ensure_ascii=False),
+                },
+                timeout=10,
+            )
+            
+            data = resp.json()
+            if data.get("code") == 0:
+                print(f">>> 调试信息：发送成功！ID: {target}, 类型: {receive_id_type}")
+                logger.info(f"发送成功！目标类型: {receive_id_type}, ID: {target}")
+            else:
+                print(f">>> 调试信息：发送失败！错误码: {data.get('code')}, 详情: {data.get('msg')}")
+                logger.error(f"发送失败！错误码: {data.get('code')}, 消息: {data.get('msg')}")
+                
+        except Exception as e:
+            logger.error(f"网络请求异常: {e}")
 
 
 def _send(card: dict, prefer_bot: bool = True) -> None:
@@ -535,6 +612,7 @@ def send_signal(
     results: Dict[str, List[str]],
     trade_date: Optional[str] = None,
     name_map: Optional[Dict[str, str]] = None,
+    chat_id: Optional[str] = None
 ) -> None:
     """
     推送选股信号卡片。
@@ -556,7 +634,22 @@ def send_signal(
     if _callback_server is not None:
         _callback_server.cache_last_signal(card["card"])
 
-    _send(card, prefer_bot=True)
+    # 1. 优先使用函数参数传入的 chat_id
+    # 2. 如果没有传参，则使用环境变量里的默认 ID
+    target_id = chat_id or CHAT_ID 
+
+    if not target_id:
+        logger.warning("未提供 chat_id 且环境变量 FEISHU_CHAT_ID 为空，放弃推送")
+        return
+
+    # 调用底层的 Bot API 发送
+    # 注意：我们需要微调 _post_bot 让它接收 target_id
+    try:
+        _post_bot(card, open_id=target_id)
+    except Exception as e:
+        logger.error(f"推送信号至 {target_id} 失败: {e}")
+
+    #_send(card, prefer_bot=True)
 
 
 def send_error(error_msg: str) -> None:
@@ -583,9 +676,25 @@ def send_error(error_msg: str) -> None:
     _send(card, prefer_bot=True)
 
 
-def send_management_card() -> None:
-    """主动推送策略管理卡片（需 Bot 配置）。"""
-    _post_bot(_management_card())
+def send_management_card(chat_id: Optional[str] = None) -> None:
+    """
+    主动推送策略管理卡片。
+    :param chat_id: 指定接收者的 ID（ou_xxx 或 oc_xxx）。如果不传，则使用默认配置。
+    """
+    # 1. 确定目标 ID：参数优先，环境变量保底
+    target_id = chat_id or os.environ.get("FEISHU_CHAT_ID", "").split(",")[0]
+    
+    if not target_id:
+        logger.error("未找到有效的发送目标，请在 .env 中设置 FEISHU_CHAT_ID 或传入参数")
+        return
+
+    # 2. 生成对应 target_id 的卡片（因为不同 ID 的开关状态不同）
+    card_content = _management_card(target_id)
+    
+    # 3. 发送给指定的 target_id
+    _post_bot(card_content, open_id=target_id)
+    
+    logger.info(f"已主动推送管理卡片至目标: {target_id}")
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -670,21 +779,23 @@ class FeishuCallbackServer:
 
         logger.info("卡片回调 open_id=%s action=%s", open_id, action_tag)
 
+        target_id = value.get("target_id", open_id)
+
         # ── 显示策略管理卡片 ──────────────────────────────────────────────
         if action_tag == "show_management":
             return {
                 "toast": {"type": "info", "content": "策略管理"},
-                "card":  _management_card()["card"],
+                "card":  _management_card(target_id)["card"],
             }
 
         # ── 切换策略上线/下线 ─────────────────────────────────────────────
         elif action_tag == "toggle_selector":
             alias          = value.get("alias", "")
-            new_state, msg = toggle_selector(alias)
+            new_state, msg = toggle_selector(alias,target_id)
             toast_type     = "success" if new_state is not None else "error"
             return {
                 "toast": {"type": toast_type, "content": msg},
-                "card":  _management_card()["card"],
+                "card":  _management_card(target_id)["card"],
             }
 
         # ── 显示日期输入卡片 ──────────────────────────────────────────────
@@ -703,20 +814,75 @@ class FeishuCallbackServer:
 
         # ── 提交查询 ──────────────────────────────────────────────────────
         elif action_tag == "submit_query":
-            query_date = (
+            # 1. 获取并清洗日期
+            raw_date = (
                 _normalize_date(action.get("option", ""))
                 or self._pending_dates.get(open_id, "")
             )
-            if not query_date:
+            if not raw_date:
                 return {"toast": {"type": "error", "content": "请先选择日期"}}
+            
+            # 核心修复：处理 +0800 时区问题，只保留 YYYY-MM-DD
+            query_date = raw_date.split(' ')[0]
+
+            import sys
+            import os
+            from pathlib import Path
+            # 确保 ROOT 已经定义，如果没有定义，就在这里临时定义
+            CURRENT_ROOT = Path(__file__).parent.parent.absolute()
+            if str(CURRENT_ROOT) not in sys.path:
+                sys.path.insert(0, str(CURRENT_ROOT))
+            
+            try:
+                # 🌟 显式导入这两个关键变量/函数
+                from scripts.daily_selector import _load_selector_config, BUY_CONFIG
+            except ImportError as e:
+                logger.error(f"无法从 daily_selector 导入配置工具: {e}")
+                return {"toast": {"type": "error", "content": "系统组件加载失败"}}
+
+            # 2. 从磁盘加载原始信号数据
+            # 此时 load_signal_for_date 内部也应确保做了 split(' ')[0]
+            raw_results = load_signal_for_date(query_date)
+            if not raw_results:
+                return {"toast": {"type": "warning", "content": f"❌ {query_date} 无选股记录"}}
+            
+            # 3. 🌟 对齐配置顺序与“显影”无信号战法
+            instance_path = ROOT / "configs" / "instances" / f"selectors_{target_id}.json"
+            conf_path = instance_path if instance_path.exists() else BUY_CONFIG
+            
+            try:
+                active_selectors = _load_selector_config(conf_path)
+            except Exception as e:
+                logger.error("加载配置失败: %s", e)
+                active_selectors = []
+            
+            # 构造对齐后的结果字典
+            aligned_results = {"__all__": raw_results.get("__all__", [])}
+            
+            for s in active_selectors:
+                if not s.get("activate", True): # 只显示该群已开启的战法
+                    continue
+                alias = s.get("alias")
+                if not alias: continue
+                
+                # 即使 raw_results 里没有（即该战法没出票），也要赋值 []
+                # 这样渲染层会显示“0个”和“无”
+                aligned_results[alias] = raw_results.get(alias, [])
+
+            # 4. 如果连 __all__ 都没有，说明该日期确实没有任何运行记录
+            if not raw_results:
+                return {"toast": {"type": "warning", "content": f"❌ {query_date} 没有任何选股记录"}}
+
+            # 5. 返回查询结果卡片
             name_map = load_name_map()
-            results  = load_signal_for_date(query_date)
+            full_card = _signal_card(aligned_results, query_date, name_map)
             return {
                 "toast": {
-                    "type":    "success" if results else "warning",
+                    "type":    "success",
                     "content": f"查询完成：{query_date}",
                 },
-                "card": _query_result_card(query_date, results, name_map)["card"],
+                # 使用对齐后的 aligned_results
+                "card": full_card["card"],
             }
 
         # ── 返回最新信号卡片 ──────────────────────────────────────────────
@@ -873,8 +1039,19 @@ if __name__ == "__main__":
         FeishuCallbackServer().run()
 
     elif args.cmd == "manage":
-        send_management_card()
-        print("✅ 策略管理卡片已发送")
+        # 1. 尝试从命令行获取 ID (假设你解析了第二个参数)
+        # 如果 args.date 那个位置被你用来放 ID 了，或者直接解析 sys.argv
+        import sys
+        
+        # 逻辑：如果命令行 manage 后面还跟了一个参数，就把它当做 target_id
+        # 例如：python scripts/feishu.py manage ou_12345
+        target_id = sys.argv[2] if len(sys.argv) > 2 else None
+        
+        # 2. 调用修改后的函数
+        send_management_card(target_id)
+        
+        display_id = target_id if target_id else "默认 ID"
+        print(f"✅ 策略管理卡片已发送至: {display_id}")
 
     elif args.cmd == "query":
         qdate    = _normalize_date(args.date)
