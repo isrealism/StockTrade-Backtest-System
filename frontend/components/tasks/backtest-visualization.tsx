@@ -106,18 +106,19 @@ function parseLogsToData(logs: LogEntry[], initialCapital: number) {
   for (const log of logs) {
     const msg = log.message;
 
-    // Parse date header: "--- 2024-01-01 ---"
-    const dateHeaderMatch = msg.match(/^---\s*(\d{4}-\d{2}-\d{2})\s*---$/);
+    // Parse date header: "--- 2024-01-01 ---" (may have leading whitespace or newline)
+    const dateHeaderMatch = msg.match(/---\s*(\d{4}-\d{2}-\d{2})\s*---/);
     if (dateHeaderMatch) {
       currentDate = dateHeaderMatch[1];
       continue;
     }
 
     // Parse portfolio summary: "Portfolio: X positions, Cash: XXX, Total: XXX"
-    const portfolioMatch = msg.match(/Portfolio:\s*\d+\s*positions?,\s*Cash:\s*([\d,.]+),\s*Total:\s*([\d,.]+)/i);
+    // The format from engine.py line 1524
+    const portfolioMatch = msg.match(/Portfolio:\s*(\d+)\s*positions?,\s*Cash:\s*([\d,.]+),\s*Total:\s*([\d,.]+)/i);
     if (portfolioMatch && currentDate) {
-      const cash = parseFloat(portfolioMatch[1].replace(/,/g, ""));
-      const total = parseFloat(portfolioMatch[2].replace(/,/g, ""));
+      const cash = parseFloat(portfolioMatch[2].replace(/,/g, ""));
+      const total = parseFloat(portfolioMatch[3].replace(/,/g, ""));
       if (!isNaN(total) && !seenDates.has(currentDate)) {
         seenDates.add(currentDate);
         currentCash = cash;
@@ -228,58 +229,6 @@ function parseLogsToData(logs: LogEntry[], initialCapital: number) {
   return { equityCurve, tradeRecords };
 }
 
-// Generate demo data for preview when no real data is available
-function generateDemoData(initialCapital: number) {
-  const equityCurve: EquityPoint[] = [];
-  const tradeRecords: TradeRecord[] = [];
-  
-  const stockCodes = ["600519.SH", "000858.SZ", "601318.SH", "000333.SZ", "600036.SH", "002594.SZ"];
-  let cash = initialCapital;
-  let totalAsset = initialCapital;
-  
-  // Generate 30 days of demo data
-  const startDate = new Date("2024-01-02");
-  for (let i = 0; i < 30; i++) {
-    const date = new Date(startDate);
-    date.setDate(startDate.getDate() + i);
-    const dateStr = date.toISOString().slice(5, 10); // MM-DD
-    
-    // Random asset fluctuation
-    const changePercent = (Math.random() - 0.45) * 0.03; // Slightly positive bias
-    totalAsset = totalAsset * (1 + changePercent);
-    const positionsValue = totalAsset * (0.3 + Math.random() * 0.5);
-    cash = totalAsset - positionsValue;
-    
-    equityCurve.push({
-      date: dateStr,
-      value: Math.round(totalAsset),
-      cash: Math.round(cash),
-      positions_value: Math.round(positionsValue),
-    });
-    
-    // Add some random trades
-    if (Math.random() > 0.7) {
-      const code = stockCodes[Math.floor(Math.random() * stockCodes.length)];
-      const action = Math.random() > 0.5 ? "BUY" : "SELL";
-      const price = 50 + Math.random() * 150;
-      const shares = Math.floor(Math.random() * 10 + 1) * 100;
-      tradeRecords.push({
-        date: dateStr,
-        action: action as "BUY" | "SELL",
-        code,
-        price: Math.round(price * 100) / 100,
-        shares,
-        amount: Math.round(price * shares * 100) / 100,
-        cash: Math.round(cash),
-        asset: Math.round(totalAsset),
-        change: action === "SELL" ? Math.round((Math.random() - 0.4) * 20 * 100) / 100 : undefined,
-      });
-    }
-  }
-  
-  return { equityCurve, tradeRecords };
-}
-
 // Custom Tooltip Component
 function CustomTooltip({ active, payload, label }: { active?: boolean; payload?: { value: number }[]; label?: string }) {
   if (!active || !payload || !payload.length) return null;
@@ -301,15 +250,17 @@ export function BacktestVisualization({
 }: BacktestVisualizationProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  // Parse real logs or use demo data when no logs available
+  // Parse logs to extract equity curve and trade records
   const { equityCurve, tradeRecords } = useMemo(() => {
-    const parsed = parseLogsToData(logs, initialCapital);
-    // Use demo data if no real data and not running
-    if (parsed.equityCurve.length <= 1 && !isRunning) {
-      return generateDemoData(initialCapital);
+    const result = parseLogsToData(logs, initialCapital);
+    // Debug: log parsing results
+    if (logs.length > 0 && result.equityCurve.length <= 1) {
+      console.log("[v0] Log parsing debug - logs count:", logs.length);
+      console.log("[v0] Sample log messages:", logs.slice(0, 10).map(l => l.message));
+      console.log("[v0] equityCurve points:", result.equityCurve.length);
     }
-    return parsed;
-  }, [logs, initialCapital, isRunning]);
+    return result;
+  }, [logs, initialCapital]);
 
   // Calculate stats
   const stats = useMemo(() => {
