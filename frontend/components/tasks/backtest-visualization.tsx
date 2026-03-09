@@ -58,7 +58,8 @@ interface TradeRecord {
   price?: number;
   shares?: number;
   amount?: number;
-  asset: number;
+  cash: number;      // 可用资金
+  asset: number;     // 总资产
   change?: number;
   reason?: string;
 }
@@ -99,6 +100,7 @@ function parseLogsToData(logs: LogEntry[], initialCapital: number) {
   }
 
   let currentDate = "";
+  let currentCash = initialCapital;
   let currentAsset = initialCapital;
 
   for (const log of logs) {
@@ -114,14 +116,16 @@ function parseLogsToData(logs: LogEntry[], initialCapital: number) {
     // Parse portfolio summary: "Portfolio: X positions, Cash: XXX, Total: XXX"
     const portfolioMatch = msg.match(/Portfolio:\s*\d+\s*positions?,\s*Cash:\s*([\d,.]+),\s*Total:\s*([\d,.]+)/i);
     if (portfolioMatch && currentDate) {
+      const cash = parseFloat(portfolioMatch[1].replace(/,/g, ""));
       const total = parseFloat(portfolioMatch[2].replace(/,/g, ""));
       if (!isNaN(total) && !seenDates.has(currentDate)) {
         seenDates.add(currentDate);
+        currentCash = cash;
         currentAsset = total;
         equityCurve.push({
           date: currentDate.slice(5), // MM-DD format
           value: total,
-          cash: parseFloat(portfolioMatch[1].replace(/,/g, "")),
+          cash: cash,
         });
       }
     }
@@ -139,6 +143,7 @@ function parseLogsToData(logs: LogEntry[], initialCapital: number) {
         price,
         shares,
         amount: price * shares,
+        cash: currentCash,
         asset: currentAsset,
       });
     }
@@ -159,6 +164,7 @@ function parseLogsToData(logs: LogEntry[], initialCapital: number) {
         price,
         shares,
         amount: price * shares,
+        cash: currentCash,
         asset: currentAsset,
         change,
       });
@@ -179,6 +185,7 @@ function parseLogsToData(logs: LogEntry[], initialCapital: number) {
         price,
         shares,
         amount: price * shares,
+        cash: currentCash,
         asset: currentAsset,
       });
     }
@@ -196,6 +203,7 @@ function parseLogsToData(logs: LogEntry[], initialCapital: number) {
         price,
         shares,
         amount: price * shares,
+        cash: currentCash,
         asset: currentAsset,
         change,
       });
@@ -220,6 +228,58 @@ function parseLogsToData(logs: LogEntry[], initialCapital: number) {
   return { equityCurve, tradeRecords };
 }
 
+// Generate demo data for preview when no real data is available
+function generateDemoData(initialCapital: number) {
+  const equityCurve: EquityPoint[] = [];
+  const tradeRecords: TradeRecord[] = [];
+  
+  const stockCodes = ["600519.SH", "000858.SZ", "601318.SH", "000333.SZ", "600036.SH", "002594.SZ"];
+  let cash = initialCapital;
+  let totalAsset = initialCapital;
+  
+  // Generate 30 days of demo data
+  const startDate = new Date("2024-01-02");
+  for (let i = 0; i < 30; i++) {
+    const date = new Date(startDate);
+    date.setDate(startDate.getDate() + i);
+    const dateStr = date.toISOString().slice(5, 10); // MM-DD
+    
+    // Random asset fluctuation
+    const changePercent = (Math.random() - 0.45) * 0.03; // Slightly positive bias
+    totalAsset = totalAsset * (1 + changePercent);
+    const positionsValue = totalAsset * (0.3 + Math.random() * 0.5);
+    cash = totalAsset - positionsValue;
+    
+    equityCurve.push({
+      date: dateStr,
+      value: Math.round(totalAsset),
+      cash: Math.round(cash),
+      positions_value: Math.round(positionsValue),
+    });
+    
+    // Add some random trades
+    if (Math.random() > 0.7) {
+      const code = stockCodes[Math.floor(Math.random() * stockCodes.length)];
+      const action = Math.random() > 0.5 ? "BUY" : "SELL";
+      const price = 50 + Math.random() * 150;
+      const shares = Math.floor(Math.random() * 10 + 1) * 100;
+      tradeRecords.push({
+        date: dateStr,
+        action: action as "BUY" | "SELL",
+        code,
+        price: Math.round(price * 100) / 100,
+        shares,
+        amount: Math.round(price * shares * 100) / 100,
+        cash: Math.round(cash),
+        asset: Math.round(totalAsset),
+        change: action === "SELL" ? Math.round((Math.random() - 0.4) * 20 * 100) / 100 : undefined,
+      });
+    }
+  }
+  
+  return { equityCurve, tradeRecords };
+}
+
 // Custom Tooltip Component
 function CustomTooltip({ active, payload, label }: { active?: boolean; payload?: { value: number }[]; label?: string }) {
   if (!active || !payload || !payload.length) return null;
@@ -241,10 +301,15 @@ export function BacktestVisualization({
 }: BacktestVisualizationProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  const { equityCurve, tradeRecords } = useMemo(
-    () => parseLogsToData(logs, initialCapital),
-    [logs, initialCapital]
-  );
+  // Parse real logs or use demo data when no logs available
+  const { equityCurve, tradeRecords } = useMemo(() => {
+    const parsed = parseLogsToData(logs, initialCapital);
+    // Use demo data if no real data and not running
+    if (parsed.equityCurve.length <= 1 && !isRunning) {
+      return generateDemoData(initialCapital);
+    }
+    return parsed;
+  }, [logs, initialCapital, isRunning]);
 
   // Calculate stats
   const stats = useMemo(() => {
@@ -449,8 +514,8 @@ export function BacktestVisualization({
           </div>
         </CardHeader>
         <CardContent>
-          <ScrollArea className="h-52">
-            <div ref={scrollRef} className="space-y-1 pr-4">
+          <ScrollArea className="h-[420px]">
+            <div ref={scrollRef} className="space-y-2 pr-4">
               {tradeRecords.length > 0 ? (
                 tradeRecords.map((record, idx) => (
                   <div
@@ -514,11 +579,15 @@ export function BacktestVisualization({
                       </div>
                     </div>
 
-                    {/* Asset & Change */}
-                    <div className="shrink-0 text-right">
-                      <div className="flex items-center justify-end gap-1 text-xs text-foreground">
-                        <DollarSign className="h-3 w-3 text-muted-foreground" />
-                        <span className="font-mono">{formatMoney(record.asset)}</span>
+                    {/* Cash & Total Asset */}
+                    <div className="shrink-0 text-right min-w-[120px]">
+                      <div className="flex items-center justify-end gap-1.5 text-[11px]">
+                        <span className="text-muted-foreground">可用:</span>
+                        <span className="font-mono text-foreground">{formatMoney(record.cash)}</span>
+                      </div>
+                      <div className="flex items-center justify-end gap-1.5 text-[11px] mt-0.5">
+                        <span className="text-muted-foreground">总资产:</span>
+                        <span className="font-mono font-medium text-foreground">{formatMoney(record.asset)}</span>
                       </div>
                       {record.change !== undefined && (
                         <span
@@ -530,7 +599,7 @@ export function BacktestVisualization({
                           )}
                         >
                           {record.change >= 0 ? "+" : ""}
-                          {formatFullMoney(record.change)}
+                          {record.change.toFixed(2)}%
                         </span>
                       )}
                     </div>
