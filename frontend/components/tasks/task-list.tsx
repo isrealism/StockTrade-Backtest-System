@@ -1,9 +1,8 @@
 "use client";
 
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { cn, formatDate, formatPercent } from "@/lib/utils";
+import { cn, formatPercent } from "@/lib/utils";
 import type { BacktestSummary } from "@/lib/api";
 import {
   Clock,
@@ -12,7 +11,37 @@ import {
   Loader2,
   Ban,
   ChevronRight,
+  Timer,
 } from "lucide-react";
+
+// Format duration from milliseconds to human readable string
+function formatDuration(ms: number): string {
+  if (ms < 1000) return `${ms}ms`;
+  
+  const seconds = Math.floor(ms / 1000);
+  const minutes = Math.floor(seconds / 60);
+  const hours = Math.floor(minutes / 60);
+  
+  if (hours > 0) {
+    const remainingMinutes = minutes % 60;
+    return `${hours}h ${remainingMinutes}m`;
+  }
+  if (minutes > 0) {
+    const remainingSeconds = seconds % 60;
+    return `${minutes}m ${remainingSeconds}s`;
+  }
+  return `${seconds}s`;
+}
+
+// Calculate duration between two ISO timestamps
+function calculateDuration(startedAt: string | null, finishedAt: string | null): number | null {
+  if (!startedAt) return null;
+  
+  const start = new Date(startedAt).getTime();
+  const end = finishedAt ? new Date(finishedAt).getTime() : Date.now();
+  
+  return end - start;
+}
 
 const STATUS_CONFIG: Record<
   string,
@@ -85,10 +114,23 @@ export function TaskList({ tasks, activeId, onSelect }: TaskListProps) {
                   {config.label}
                 </Badge>
               </div>
-              <div className="mt-1 flex items-center gap-3 text-xs text-muted-foreground">
+              <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
                 <span>
                   {task.start_date} ~ {task.end_date}
                 </span>
+                {/* Duration display */}
+                {(() => {
+                  const duration = calculateDuration(task.started_at, task.finished_at);
+                  if (duration !== null) {
+                    return (
+                      <span className="flex items-center gap-1 text-chart-4">
+                        <Timer className="h-3 w-3" />
+                        {formatDuration(duration)}
+                      </span>
+                    );
+                  }
+                  return null;
+                })()}
                 {task.status === "RUNNING" && (
                   <span className="text-primary">
                     {task.progress.toFixed(1)}%

@@ -251,16 +251,10 @@ export function BacktestVisualization({
   const scrollRef = useRef<HTMLDivElement>(null);
 
   // Parse logs to extract equity curve and trade records
-  const { equityCurve, tradeRecords } = useMemo(() => {
-    const result = parseLogsToData(logs, initialCapital);
-    // Debug: log parsing results
-    if (logs.length > 0 && result.equityCurve.length <= 1) {
-      console.log("[v0] Log parsing debug - logs count:", logs.length);
-      console.log("[v0] Sample log messages:", logs.slice(0, 10).map(l => l.message));
-      console.log("[v0] equityCurve points:", result.equityCurve.length);
-    }
-    return result;
-  }, [logs, initialCapital]);
+  const { equityCurve, tradeRecords } = useMemo(
+    () => parseLogsToData(logs, initialCapital),
+    [logs, initialCapital]
+  );
 
   // Calculate stats
   const stats = useMemo(() => {
