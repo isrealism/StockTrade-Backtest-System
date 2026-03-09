@@ -4,18 +4,15 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { useBacktest } from "@/lib/hooks";
 import { cancelBacktest } from "@/lib/api";
 import { PayloadViewerDialog } from "@/components/shared/payload-viewer-dialog";
+import { BacktestVisualization } from "@/components/tasks/backtest-visualization";
 import { cn, formatDate, formatPercent, formatNumber } from "@/lib/utils";
 import {
   Square,
-  ExternalLink,
   Loader2,
-  Terminal,
   BarChart3,
-  Clock,
 } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
@@ -176,42 +173,12 @@ export function TaskDetail({ backtestId }: TaskDetailProps) {
         </div>
       )}
 
-      {/* Log Panel */}
-      <Card>
-        <CardHeader className="py-3">
-          <CardTitle className="flex items-center gap-2 text-sm">
-            <Terminal className="h-4 w-4 text-primary" />
-            实时日志
-            {data.logs && (
-              <Badge variant="secondary" className="text-[10px]">
-                {data.logs.length} 条
-              </Badge>
-            )}
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ScrollArea className="h-64 rounded-md bg-background p-3">
-            {data.logs && data.logs.length > 0 ? (
-              <div className="space-y-0.5 font-mono text-xs">
-                {data.logs.map((log, idx) => (
-                  <div key={idx} className="flex gap-2">
-                    <span className="shrink-0 text-muted-foreground">
-                      {formatDate(log.ts).slice(11, 19) || log.ts.slice(11, 19)}
-                    </span>
-                    <span className="text-foreground">{log.message}</span>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="flex h-full items-center justify-center text-muted-foreground">
-                <p className="text-xs">
-                  {isRunning ? "等待日志输出..." : "暂无日志"}
-                </p>
-              </div>
-            )}
-          </ScrollArea>
-        </CardContent>
-      </Card>
+      {/* Backtest Visualization - Real-time Asset Curve + Trade Records */}
+      <BacktestVisualization
+        logs={data.logs || []}
+        initialCapital={data.payload?.initial_capital || 1000000}
+        isRunning={isRunning}
+      />
     </div>
   );
 }
