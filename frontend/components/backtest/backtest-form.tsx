@@ -23,7 +23,13 @@ import {
   type ScoreFilterConfig,
   type RotationConfig,
 } from "./score-rotation-config";
-import { createBacktest, type BacktestPayload, type SelectorConfig as SelectorType, type SellStrategyConfig as SellType } from "@/lib/api";
+import {
+  createBacktest,
+  type BacktestPayload,
+  type SelectorConfig as SelectorType,
+  type SellStrategyConfig as SellType,
+} from "@/lib/api";
+import { useNumberInput } from "@/lib/useNumberInput";
 import {
   Play,
   Save,
@@ -34,7 +40,6 @@ import {
   ChevronDown,
   ChevronRight,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
 
 interface BacktestFormProps {
   selectors: SelectorType[];
@@ -46,32 +51,34 @@ export function BacktestForm({ selectors, sellStrategies }: BacktestFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
 
-  // Basic params
+  // ── 基本参数 ──────────────────────────────────────────────────────
   const [name, setName] = useState("回测任务");
   const [startDate, setStartDate] = useState("2025-01-01");
   const [endDate, setEndDate] = useState("2025-12-31");
-  const [initialCapital, setInitialCapital] = useState("1000000");
-  const [maxPositions, setMaxPositions] = useState("20");
+
+  // 数值 state 统一用 number，输入中间态由 useNumberInput 处理
+  const [initialCapital, setInitialCapital] = useState(1000000);
+  const [maxPositions, setMaxPositions] = useState(20);
   const [positionSizing, setPositionSizing] = useState("equal_weight");
 
-  // Advanced params
-  const [commissionRate, setCommissionRate] = useState("0.0003");
-  const [stampTaxRate, setStampTaxRate] = useState("0.001");
-  const [slippageRate, setSlippageRate] = useState("0.001");
-  const [lookbackDays, setLookbackDays] = useState("200");
+  // ── 高级参数 ──────────────────────────────────────────────────────
+  const [commissionRate, setCommissionRate] = useState(0.0003);
+  const [stampTaxRate, setStampTaxRate] = useState(0.001);
+  const [slippageRate, setSlippageRate] = useState(0.001);
+  const [lookbackDays, setLookbackDays] = useState(200);
 
-  // Score rotation params
+  // ── Score / Rotation ──────────────────────────────────────────────
   const [scoreFilter, setScoreFilter] = useState<ScoreFilterConfig>(DEFAULT_SCORE_FILTER);
   const [rotation, setRotation] = useState<RotationConfig>(DEFAULT_ROTATION);
 
-  // Stock pool
+  // ── 股票池 ────────────────────────────────────────────────────────
   const [stockPoolType, setStockPoolType] = useState("all");
   const [customCodes, setCustomCodes] = useState("");
 
-  // Selector config
+  // ── 选股策略 ──────────────────────────────────────────────────────
   const [selectorList, setSelectorList] = useState(
-  selectors.map((s) => ({ ...s, activate: false }))
-  ); 
+    selectors.map((s) => ({ ...s, activate: false }))
+  );
   const [combinationMode, setCombinationMode] = useState("OR");
   const [timeWindowDays, setTimeWindowDays] = useState(5);
   const [triggerSelectors, setTriggerSelectors] = useState<string[]>([]);
@@ -80,12 +87,52 @@ export function BacktestForm({ selectors, sellStrategies }: BacktestFormProps) {
   const [confirmLogic, setConfirmLogic] = useState("OR");
   const [buyTiming, setBuyTiming] = useState("confirmation_day");
 
-  // Sell strategy config
+  // ── 卖出策略 ──────────────────────────────────────────────────────
   const [selectedSellStrategy, setSelectedSellStrategy] = useState(
     Object.keys(sellStrategies)[0] || "conservative_trailing"
   );
-  const [customSellParams, setCustomSellParams] = useState<Record<string, Record<string, unknown>> | null>(null);
+  const [customSellParams, setCustomSellParams] = useState<
+    Record<string, Record<string, unknown>>
+  >({});
 
+  // ── useNumberInput 绑定 ───────────────────────────────────────────
+  const initialCapitalInp = useNumberInput(
+    initialCapital,
+    setInitialCapital,
+    { clamp: (n) => Math.max(0, Math.round(n)) }
+  );
+
+  const maxPositionsInp = useNumberInput(
+    maxPositions,
+    setMaxPositions,
+    { clamp: (n) => Math.max(1, Math.min(50, Math.round(n))) }
+  );
+
+  const commissionRateInp = useNumberInput(
+    commissionRate,
+    setCommissionRate,
+    { display: (v) => v.toFixed(4), clamp: (n) => Math.max(0, n) }
+  );
+
+  const stampTaxRateInp = useNumberInput(
+    stampTaxRate,
+    setStampTaxRate,
+    { display: (v) => v.toFixed(4), clamp: (n) => Math.max(0, n) }
+  );
+
+  const slippageRateInp = useNumberInput(
+    slippageRate,
+    setSlippageRate,
+    { display: (v) => v.toFixed(4), clamp: (n) => Math.max(0, n) }
+  );
+
+  const lookbackDaysInp = useNumberInput(
+    lookbackDays,
+    setLookbackDays,
+    { clamp: (n) => Math.max(60, Math.round(n)) }
+  );
+
+  // ── 提交（保持你提供的原始逻辑不变）────────────────────────────────
   const handleSubmit = useCallback(async () => {
     setIsSubmitting(true);
     try {
@@ -94,7 +141,10 @@ export function BacktestForm({ selectors, sellStrategies }: BacktestFormProps) {
       };
 
       // Add time window for TIME_WINDOW and SEQUENTIAL_CONFIRMATION modes
-      if (combinationMode === "TIME_WINDOW" || combinationMode === "SEQUENTIAL_CONFIRMATION") {
+      if (
+        combinationMode === "TIME_WINDOW" ||
+        combinationMode === "SEQUENTIAL_CONFIRMATION"
+      ) {
         selectorCombination.time_window_days = timeWindowDays;
       }
 
@@ -112,19 +162,34 @@ export function BacktestForm({ selectors, sellStrategies }: BacktestFormProps) {
         selectors: selectorList,
       };
 
+      // ── 构建完整 sell_strategy_config（默认配置 + 用户自定义参数）──────
+      const baseSellStrategy = sellStrategies[selectedSellStrategy];
+      let sellStrategyConfig: unknown = baseSellStrategy ?? null;
+      if (baseSellStrategy?.strategies && customSellParams) {
+        sellStrategyConfig = {
+          ...baseSellStrategy,
+          strategies: baseSellStrategy.strategies.map((sub, idx) => {
+            const subKey = `${selectedSellStrategy}__${idx}`;
+            const overrides = customSellParams[subKey] ?? {};
+            return { ...sub, params: { ...sub.params, ...overrides } };
+          }),
+        };
+      }
+
       const payload: BacktestPayload = {
         name,
         start_date: startDate,
         end_date: endDate,
-        initial_capital: Number(initialCapital) || 1000000,
-        max_positions: Number(maxPositions) || 20,
+        initial_capital: initialCapital,
+        max_positions: maxPositions,
         position_sizing: positionSizing,
-        commission_rate: Number(commissionRate) || 0.0003,
-        stamp_tax_rate: Number(stampTaxRate) || 0.001,
-        slippage_rate: Number(slippageRate) || 0.001,
+        commission_rate: commissionRate,
+        stamp_tax_rate: stampTaxRate,
+        slippage_rate: slippageRate,
         sell_strategy_name: selectedSellStrategy,
+        sell_strategy_config: sellStrategyConfig,
         buy_config: buyConfig,
-        lookback_days: Number(lookbackDays) || 200,
+        lookback_days: lookbackDays,
         stock_pool:
           stockPoolType === "all"
             ? { type: "all" }
@@ -163,9 +228,10 @@ export function BacktestForm({ selectors, sellStrategies }: BacktestFormProps) {
     commissionRate, stampTaxRate, slippageRate, lookbackDays, stockPoolType,
     customCodes, selectorList, combinationMode, timeWindowDays,
     triggerSelectors, triggerLogic, confirmSelectors, confirmLogic, buyTiming,
-    selectedSellStrategy, router,
+    selectedSellStrategy, scoreFilter, rotation, router,
   ]);
 
+  // ── JSX ───────────────────────────────────────────────────────────
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -181,11 +247,7 @@ export function BacktestForm({ selectors, sellStrategies }: BacktestFormProps) {
             <Save className="mr-1.5 h-3.5 w-3.5" />
             保存模板
           </Button>
-          <Button
-            onClick={handleSubmit}
-            disabled={isSubmitting}
-            size="sm"
-          >
+          <Button onClick={handleSubmit} disabled={isSubmitting} size="sm">
             {isSubmitting ? (
               <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
             ) : (
@@ -203,10 +265,11 @@ export function BacktestForm({ selectors, sellStrategies }: BacktestFormProps) {
           <TabsTrigger value="sell">卖出策略</TabsTrigger>
         </TabsList>
 
-        {/* Basic Config Tab */}
+        {/* ── 基础配置 Tab ──────────────────────────────────────────── */}
         <TabsContent value="basic">
           <div className="grid gap-6 lg:grid-cols-2">
-            {/* Basic Params Card */}
+
+            {/* 基本参数 Card */}
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -255,7 +318,9 @@ export function BacktestForm({ selectors, sellStrategies }: BacktestFormProps) {
                   {stockPoolType === "list" && (
                     <textarea
                       className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                      placeholder={"输入股票代码, 逗号或换行分隔\n例如: 000001, 000002, 600000"}
+                      placeholder={
+                        "输入股票代码, 逗号或换行分隔\n例如: 000001, 000002, 600000"
+                      }
                       value={customCodes}
                       onChange={(e) => setCustomCodes(e.target.value)}
                     />
@@ -264,7 +329,7 @@ export function BacktestForm({ selectors, sellStrategies }: BacktestFormProps) {
               </CardContent>
             </Card>
 
-            {/* Capital & Position Card */}
+            {/* 资金与仓位 Card */}
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -277,8 +342,9 @@ export function BacktestForm({ selectors, sellStrategies }: BacktestFormProps) {
                   <Label>初始资金 (元)</Label>
                   <Input
                     type="number"
-                    value={initialCapital}
-                    onChange={(e) => setInitialCapital(e.target.value)}
+                    value={initialCapitalInp.inputValue}
+                    onChange={initialCapitalInp.handleChange}
+                    onBlur={initialCapitalInp.handleBlur}
                     step={100000}
                   />
                 </div>
@@ -286,8 +352,9 @@ export function BacktestForm({ selectors, sellStrategies }: BacktestFormProps) {
                   <Label>最大持仓数</Label>
                   <Input
                     type="number"
-                    value={maxPositions}
-                    onChange={(e) => setMaxPositions(e.target.value)}
+                    value={maxPositionsInp.inputValue}
+                    onChange={maxPositionsInp.handleChange}
+                    onBlur={maxPositionsInp.handleBlur}
                     min={1}
                     max={50}
                   />
@@ -300,12 +367,14 @@ export function BacktestForm({ selectors, sellStrategies }: BacktestFormProps) {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="equal_weight">等权分配</SelectItem>
-                      <SelectItem value="risk_based">基于风险分配 (ATR)</SelectItem>
+                      <SelectItem value="risk_based">
+                        基于风险分配 (ATR)
+                      </SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
 
-                {/* Advanced Toggle */}
+                {/* 高级参数折叠区 */}
                 <button
                   onClick={() => setShowAdvanced(!showAdvanced)}
                   className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground"
@@ -327,10 +396,9 @@ export function BacktestForm({ selectors, sellStrategies }: BacktestFormProps) {
                       </Label>
                       <Input
                         type="number"
-                        value={commissionRate}
-                        onChange={(e) =>
-                          setCommissionRate(e.target.value)
-                        }
+                        value={commissionRateInp.inputValue}
+                        onChange={commissionRateInp.handleChange}
+                        onBlur={commissionRateInp.handleBlur}
                         step={0.0001}
                         className="h-8 text-xs"
                       />
@@ -341,10 +409,9 @@ export function BacktestForm({ selectors, sellStrategies }: BacktestFormProps) {
                       </Label>
                       <Input
                         type="number"
-                        value={stampTaxRate}
-                        onChange={(e) =>
-                          setStampTaxRate(e.target.value)
-                        }
+                        value={stampTaxRateInp.inputValue}
+                        onChange={stampTaxRateInp.handleChange}
+                        onBlur={stampTaxRateInp.handleBlur}
                         step={0.0001}
                         className="h-8 text-xs"
                       />
@@ -355,10 +422,9 @@ export function BacktestForm({ selectors, sellStrategies }: BacktestFormProps) {
                       </Label>
                       <Input
                         type="number"
-                        value={slippageRate}
-                        onChange={(e) =>
-                          setSlippageRate(e.target.value)
-                        }
+                        value={slippageRateInp.inputValue}
+                        onChange={slippageRateInp.handleChange}
+                        onBlur={slippageRateInp.handleBlur}
                         step={0.0001}
                         className="h-8 text-xs"
                       />
@@ -369,10 +435,9 @@ export function BacktestForm({ selectors, sellStrategies }: BacktestFormProps) {
                       </Label>
                       <Input
                         type="number"
-                        value={lookbackDays}
-                        onChange={(e) =>
-                          setLookbackDays(e.target.value)
-                        }
+                        value={lookbackDaysInp.inputValue}
+                        onChange={lookbackDaysInp.handleChange}
+                        onBlur={lookbackDaysInp.handleBlur}
                         min={60}
                         className="h-8 text-xs"
                       />
@@ -381,16 +446,20 @@ export function BacktestForm({ selectors, sellStrategies }: BacktestFormProps) {
                 )}
               </CardContent>
             </Card>
-          <ScoreRotationConfig
-            scoreFilter={scoreFilter}
-            rotation={rotation}
-            onScoreFilterChange={setScoreFilter}
-            onRotationChange={setRotation}
-          />
+
+            {/* Score Filter & Rotation — 横跨两列 */}
+            <div className="lg:col-span-2">
+              <ScoreRotationConfig
+                scoreFilter={scoreFilter}
+                rotation={rotation}
+                onScoreFilterChange={setScoreFilter}
+                onRotationChange={setRotation}
+              />
+            </div>
           </div>
         </TabsContent>
 
-        {/* Selector Config Tab */}
+        {/* ── 选股策略 Tab ──────────────────────────────────────────── */}
         <TabsContent value="selectors">
           <SelectorConfig
             selectors={selectorList}
@@ -412,7 +481,7 @@ export function BacktestForm({ selectors, sellStrategies }: BacktestFormProps) {
           />
         </TabsContent>
 
-        {/* Sell Strategy Tab */}
+        {/* ── 卖出策略 Tab ──────────────────────────────────────────── */}
         <TabsContent value="sell">
           <SellStrategyConfig
             strategies={sellStrategies}

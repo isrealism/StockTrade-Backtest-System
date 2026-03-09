@@ -3,11 +3,11 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { ChevronDown, ChevronRight, Info } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
+import { NumericInput } from "@/lib/useNumberInput";
 
 const SELECTOR_INFO: Record<string, { name: string; description: string }> = {
   BBIKDJSelector: {
@@ -126,13 +126,13 @@ export function SelectorConfig({
     onChange(updated);
   }
 
-  const activeSelectors = selectors.filter(s => s.activate);
+  const activeSelectors = selectors.filter((s) => s.activate);
 
   function toggleTriggerSelector(selectorClass: string) {
     if (!onTriggerSelectorsChange) return;
     const isSelected = triggerSelectors.includes(selectorClass);
     if (isSelected) {
-      onTriggerSelectorsChange(triggerSelectors.filter(s => s !== selectorClass));
+      onTriggerSelectorsChange(triggerSelectors.filter((s) => s !== selectorClass));
     } else {
       onTriggerSelectorsChange([...triggerSelectors, selectorClass]);
     }
@@ -142,7 +142,7 @@ export function SelectorConfig({
     if (!onConfirmSelectorsChange) return;
     const isSelected = confirmSelectors.includes(selectorClass);
     if (isSelected) {
-      onConfirmSelectorsChange(confirmSelectors.filter(s => s !== selectorClass));
+      onConfirmSelectorsChange(confirmSelectors.filter((s) => s !== selectorClass));
     } else {
       onConfirmSelectorsChange([...confirmSelectors, selectorClass]);
     }
@@ -159,7 +159,7 @@ export function SelectorConfig({
               {[
                 { value: "OR", label: "任一满足" },
                 { value: "AND", label: "全部满足" },
-                { value: "SEQUENTIAL_CONFIRMATION", label: "信号组合" }
+                { value: "SEQUENTIAL_CONFIRMATION", label: "信号组合" },
               ].map((mode) => (
                 <button
                   key={mode.value}
@@ -193,12 +193,13 @@ export function SelectorConfig({
                 <Label className="text-xs text-muted-foreground">
                   时间窗口 (天数)
                 </Label>
-                <Input
-                  type="number"
+                {/* ✅ NumericInput 替换原来的 Input + Number() 写法 */}
+                <NumericInput
+                  value={timeWindowDays}
+                  onChange={(num) => onTimeWindowDaysChange?.(num)}
+                  clamp={(n) => Math.max(1, Math.min(30, Math.round(n)))}
                   min={1}
                   max={30}
-                  value={timeWindowDays}
-                  onChange={(e) => onTimeWindowDaysChange?.(Number(e.target.value))}
                   className="h-9"
                 />
                 <p className="text-xs text-muted-foreground">
@@ -224,34 +225,36 @@ export function SelectorConfig({
                           : "text-muted-foreground hover:text-foreground"
                       )}
                     >
-                      {logic === "OR" ? "任一触发" : "全部触发"}
+                      {logic === "OR" ? "任一" : "全部"}
                     </button>
                   ))}
                 </div>
               </div>
               <div className="flex flex-wrap gap-2">
-                {activeSelectors.map((selector) => {
-                  const info = SELECTOR_INFO[selector.class];
-                  const isSelected = triggerSelectors.includes(selector.class);
+                {activeSelectors.map((s) => {
+                  const info = SELECTOR_INFO[s.class];
+                  const isSelected = triggerSelectors.includes(s.class);
                   return (
                     <button
-                      key={selector.class}
-                      onClick={() => toggleTriggerSelector(selector.class)}
+                      key={s.class}
+                      onClick={() => toggleTriggerSelector(s.class)}
                       className={cn(
-                        "rounded-md px-3 py-1.5 text-xs font-medium transition-all",
+                        "rounded-md px-2.5 py-1 text-xs font-medium transition-all border",
                         isSelected
-                          ? "bg-accent text-accent-foreground shadow-sm"
-                          : "bg-secondary text-muted-foreground hover:bg-secondary/80"
+                          ? "bg-primary text-primary-foreground border-primary"
+                          : "bg-background text-muted-foreground border-border hover:border-muted-foreground/50"
                       )}
                     >
-                      {info?.name || selector.alias}
+                      {info?.name || s.alias}
                     </button>
                   );
                 })}
+                {activeSelectors.length === 0 && (
+                  <p className="text-xs text-muted-foreground">
+                    请先在下方启用至少一个选股器
+                  </p>
+                )}
               </div>
-              <p className="text-xs text-muted-foreground">
-                选择作为初始触发条件的选股器
-              </p>
             </div>
 
             <div className="h-px bg-border" />
@@ -271,44 +274,41 @@ export function SelectorConfig({
                           : "text-muted-foreground hover:text-foreground"
                       )}
                     >
-                      {logic === "OR" ? "任一确认" : "全部确认"}
+                      {logic === "OR" ? "任一" : "全部"}
                     </button>
                   ))}
                 </div>
               </div>
               <div className="flex flex-wrap gap-2">
-                {activeSelectors.map((selector) => {
-                  const info = SELECTOR_INFO[selector.class];
-                  const isSelected = confirmSelectors.includes(selector.class);
+                {activeSelectors.map((s) => {
+                  const info = SELECTOR_INFO[s.class];
+                  const isSelected = confirmSelectors.includes(s.class);
                   return (
                     <button
-                      key={selector.class}
-                      onClick={() => toggleConfirmSelector(selector.class)}
+                      key={s.class}
+                      onClick={() => toggleConfirmSelector(s.class)}
                       className={cn(
-                        "rounded-md px-3 py-1.5 text-xs font-medium transition-all",
+                        "rounded-md px-2.5 py-1 text-xs font-medium transition-all border",
                         isSelected
-                          ? "bg-accent text-accent-foreground shadow-sm"
-                          : "bg-secondary text-muted-foreground hover:bg-secondary/80"
+                          ? "bg-primary text-primary-foreground border-primary"
+                          : "bg-background text-muted-foreground border-border hover:border-muted-foreground/50"
                       )}
                     >
-                      {info?.name || selector.alias}
+                      {info?.name || s.alias}
                     </button>
                   );
                 })}
               </div>
-              <p className="text-xs text-muted-foreground">
-                选择用于确认触发信号的选股器
-              </p>
             </div>
 
             <div className="h-px bg-border" />
 
             <div className="space-y-2">
-              <Label className="text-xs text-muted-foreground">买入时机</Label>
-              <div className="flex items-center gap-2">
+              <Label className="text-sm font-medium">买入时机</Label>
+              <div className="flex gap-2">
                 {[
-                  { value: "confirmation_day", label: "确认日买入" },
-                  { value: "trigger_day", label: "触发日买入(确认后补)" }
+                  { value: "confirmation_day", label: "确认信号当天" },
+                  { value: "trigger_day", label: "触发信号当天" },
                 ].map((timing) => (
                   <button
                     key={timing.value}
@@ -383,42 +383,46 @@ export function SelectorConfig({
                       {Object.entries(selector.params).map(([key, value]) => {
                         if (key === "B1_params") return null;
                         const label = PARAM_LABELS[key] || key;
+
                         if (typeof value === "boolean") {
                           return (
-                            <div
-                              key={key}
-                              className="flex items-center justify-between gap-2 rounded-md bg-background p-2"
-                            >
+                            <div key={key} className="space-y-1">
                               <Label className="text-xs text-muted-foreground">
                                 {label}
                               </Label>
-                              <Switch
-                                checked={value}
-                                onCheckedChange={(v) =>
-                                  updateParam(idx, key, v)
-                                }
-                              />
+                              <div className="flex h-8 rounded-md border border-input overflow-hidden text-xs">
+                                {([true, false] as const).map((opt, i) => (
+                                  <button
+                                    key={String(opt)}
+                                    type="button"
+                                    onClick={() => updateParam(idx, key, opt)}
+                                    className={cn(
+                                      "flex-1 transition-colors",
+                                      i === 1 && "border-l border-input",
+                                      value === opt
+                                        ? "bg-primary text-primary-foreground font-medium"
+                                        : "bg-background text-muted-foreground hover:bg-muted"
+                                    )}
+                                  >
+                                    {opt ? "是" : "否"}
+                                  </button>
+                                ))}
+                              </div>
                             </div>
                           );
                         }
+
+                        // ✅ NumericInput 替换原来需要 string 中间态的写法
                         return (
                           <div key={key} className="space-y-1">
                             <Label className="text-xs text-muted-foreground">
                               {label}
                             </Label>
-                            <Input
-                              type="number"
-                              value={value === 0 && String(value) === "0" ? "" : String(value)}
-                              onChange={(e) => {
-                                const raw = e.target.value;
-                                updateParam(idx, key, raw === "" ? "" : Number(raw));
-                              }}
+                            <NumericInput
+                              value={typeof value === "number" ? value : Number(value)}
+                              onChange={(num) => updateParam(idx, key, num)}
+                              step={typeof value === "number" && value < 1 ? 0.01 : 1}
                               className="h-8 text-xs"
-                              step={
-                                typeof value === "number" && value < 1
-                                  ? "0.01"
-                                  : "1"
-                              }
                             />
                           </div>
                         );

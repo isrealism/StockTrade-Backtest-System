@@ -7,6 +7,7 @@ import { Progress } from "@/components/ui/progress";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useBacktest } from "@/lib/hooks";
 import { cancelBacktest } from "@/lib/api";
+import { PayloadViewerDialog } from "@/components/shared/payload-viewer-dialog";
 import { cn, formatDate, formatPercent, formatNumber } from "@/lib/utils";
 import {
   Square,
@@ -31,12 +32,8 @@ export function TaskDetail({ backtestId }: TaskDetailProps) {
     setCancelling(true);
     try {
       await cancelBacktest(backtestId);
-      // Optimistically update the local state to show cancelling
       if (data) {
-        mutate({
-          ...data,
-          status: "CANCELLED" as const,
-        }, false); // false = don't revalidate immediately
+        mutate({ ...data, status: "CANCELLED" as const }, false);
       }
     } catch (error) {
       console.error("Failed to cancel backtest:", error);
@@ -69,6 +66,9 @@ export function TaskDetail({ backtestId }: TaskDetailProps) {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          {/* ✅ 任务配置按键 */}
+          <PayloadViewerDialog payload={data.payload} />
+
           {isRunning && (
             <Button
               variant="destructive"
@@ -125,9 +125,7 @@ export function TaskDetail({ backtestId }: TaskDetailProps) {
       {isCancelled && (
         <Card className="border-muted bg-muted/20">
           <CardContent className="py-4">
-            <p className="text-sm text-muted-foreground">
-              回测任务已取消
-            </p>
+            <p className="text-sm text-muted-foreground">回测任务已取消</p>
           </CardContent>
         </Card>
       )}

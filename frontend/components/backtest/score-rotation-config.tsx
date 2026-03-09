@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
@@ -14,6 +13,7 @@ import {
 } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Info, TrendingUp, RefreshCw } from "lucide-react";
+import { useNumberInput } from "@/lib/useNumberInput";
 
 // ─────────────────────────────────────────────
 // 类型定义
@@ -74,6 +74,58 @@ export function ScoreRotationConfig({
   onScoreFilterChange,
   onRotationChange,
 }: ScoreRotationConfigProps) {
+
+  // ── ScoreFilter 字段 ──────────────────────────────────────────────
+  const percentileInp = useNumberInput(
+    scoreFilter.percentile_threshold,
+    (num) => onScoreFilterChange({ ...scoreFilter, percentile_threshold: num }),
+    { clamp: (n) => Math.min(99, Math.max(1, Math.round(n))) }
+  );
+
+  const minHistoryInp = useNumberInput(
+    scoreFilter.min_history,
+    (num) => onScoreFilterChange({ ...scoreFilter, min_history: num }),
+    { clamp: (n) => Math.max(1, Math.round(n)) }
+  );
+
+  const warmupDaysInp = useNumberInput(
+    scoreFilter.warmup_lookback_days,
+    (num) => onScoreFilterChange({ ...scoreFilter, warmup_lookback_days: num }),
+    { clamp: (n) => Math.max(1, Math.round(n)) }
+  );
+
+  // ── Rotation 字段 ─────────────────────────────────────────────────
+  // min_loss 存储 0~1，界面显示百分比
+  const minLossInp = useNumberInput(
+    rotation.min_loss * 100,
+    (num) => onRotationChange({ ...rotation, min_loss: num / 100 }),
+    {
+      display: (v) => v.toFixed(1),
+      clamp: (n) => Math.max(0.1, Math.min(50, n)),
+    }
+  );
+
+  const maxPerDayInp = useNumberInput(
+    rotation.max_per_day,
+    (num) => onRotationChange({ ...rotation, max_per_day: num }),
+    { clamp: (n) => Math.max(1, Math.min(10, Math.round(n))) }
+  );
+
+  const scoreRatioInp = useNumberInput(
+    rotation.score_ratio,
+    (num) => onRotationChange({ ...rotation, score_ratio: num }),
+    {
+      display: (v) => v.toFixed(1),
+      clamp: (n) => Math.max(1.0, Math.min(3.0, n)),
+    }
+  );
+
+  const minScoreImprovementInp = useNumberInput(
+    rotation.min_score_improvement,
+    (num) => onRotationChange({ ...rotation, min_score_improvement: num }),
+    { clamp: (n) => Math.max(0, n) }
+  );
+
   return (
     <div className="space-y-4">
       {/* ── Score 百分位过滤 ──────────────────────────── */}
@@ -109,13 +161,9 @@ export function ScoreRotationConfig({
               <div className="flex items-center gap-1">
                 <Input
                   type="number"
-                  value={scoreFilter.percentile_threshold}
-                  onChange={(e) =>
-                    onScoreFilterChange({
-                      ...scoreFilter,
-                      percentile_threshold: Math.min(99, Math.max(1, Number(e.target.value))),
-                    })
-                  }
+                  value={percentileInp.inputValue}
+                  onChange={percentileInp.handleChange}
+                  onBlur={percentileInp.handleBlur}
                   min={1}
                   max={99}
                   step={5}
@@ -142,13 +190,9 @@ export function ScoreRotationConfig({
               </Label>
               <Input
                 type="number"
-                value={scoreFilter.min_history}
-                onChange={(e) =>
-                  onScoreFilterChange({
-                    ...scoreFilter,
-                    min_history: Math.max(1, Number(e.target.value)),
-                  })
-                }
+                value={minHistoryInp.inputValue}
+                onChange={minHistoryInp.handleChange}
+                onBlur={minHistoryInp.handleBlur}
                 min={1}
                 className="h-8 text-xs"
               />
@@ -164,13 +208,9 @@ export function ScoreRotationConfig({
               </Label>
               <Input
                 type="number"
-                value={scoreFilter.warmup_lookback_days}
-                onChange={(e) =>
-                  onScoreFilterChange({
-                    ...scoreFilter,
-                    warmup_lookback_days: Math.max(1, Number(e.target.value)),
-                  })
-                }
+                value={warmupDaysInp.inputValue}
+                onChange={warmupDaysInp.handleChange}
+                onBlur={warmupDaysInp.handleBlur}
                 min={1}
                 className="h-8 text-xs"
               />
@@ -212,13 +252,9 @@ export function ScoreRotationConfig({
               <div className="flex items-center gap-1">
                 <Input
                   type="number"
-                  value={(rotation.min_loss * 100).toFixed(1)}
-                  onChange={(e) =>
-                    onRotationChange({
-                      ...rotation,
-                      min_loss: Math.max(0.001, Number(e.target.value) / 100),
-                    })
-                  }
+                  value={minLossInp.inputValue}
+                  onChange={minLossInp.handleChange}
+                  onBlur={minLossInp.handleBlur}
                   min={0.1}
                   max={50}
                   step={0.5}
@@ -238,13 +274,9 @@ export function ScoreRotationConfig({
               </Label>
               <Input
                 type="number"
-                value={rotation.max_per_day}
-                onChange={(e) =>
-                  onRotationChange({
-                    ...rotation,
-                    max_per_day: Math.max(1, Math.min(10, Number(e.target.value))),
-                  })
-                }
+                value={maxPerDayInp.inputValue}
+                onChange={maxPerDayInp.handleChange}
+                onBlur={maxPerDayInp.handleBlur}
                 min={1}
                 max={10}
                 className="h-8 text-xs"
@@ -262,13 +294,9 @@ export function ScoreRotationConfig({
               <div className="flex items-center gap-1">
                 <Input
                   type="number"
-                  value={rotation.score_ratio}
-                  onChange={(e) =>
-                    onRotationChange({
-                      ...rotation,
-                      score_ratio: Math.max(1.0, Number(e.target.value)),
-                    })
-                  }
+                  value={scoreRatioInp.inputValue}
+                  onChange={scoreRatioInp.handleChange}
+                  onBlur={scoreRatioInp.handleBlur}
                   min={1.0}
                   max={3.0}
                   step={0.1}
@@ -289,13 +317,9 @@ export function ScoreRotationConfig({
               <div className="flex items-center gap-1">
                 <Input
                   type="number"
-                  value={rotation.min_score_improvement}
-                  onChange={(e) =>
-                    onRotationChange({
-                      ...rotation,
-                      min_score_improvement: Math.max(0, Number(e.target.value)),
-                    })
-                  }
+                  value={minScoreImprovementInp.inputValue}
+                  onChange={minScoreImprovementInp.handleChange}
+                  onBlur={minScoreImprovementInp.handleBlur}
                   min={0}
                   step={1}
                   className="h-8 text-xs"
