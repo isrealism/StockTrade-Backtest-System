@@ -80,6 +80,11 @@ function formatFullMoney(val: number): string {
 }
 
 // Parse logs to extract equity curve and trade records
+// Backend log formats:
+// - Date header: "--- 2024-01-01 ---"
+// - Portfolio: "Portfolio: X positions, Cash: XXX, Total: XXX"
+// - Executed: "EXECUTED BUY: CODE x SHARES @ PRICE" or "EXECUTED SELL: ..."
+// - Buy signal: "BUY SIGNAL #N: CODE (STRATEGY) SHARES shares @ ~PRICE"
 function parseLogsToData(logs: LogEntry[], initialCapital: number) {
   const equityCurve: EquityPoint[] = [];
   const tradeRecords: TradeRecord[] = [];
@@ -93,96 +98,119 @@ function parseLogsToData(logs: LogEntry[], initialCapital: number) {
     });
   }
 
+  let currentDate = "";
+  let currentAsset = initialCapital;
+
   for (const log of logs) {
     const msg = log.message;
-    const ts = log.ts;
 
-    // Try to extract date from timestamp or message
-    let dateStr = "";
-    if (ts) {
-      const parsed = ts.split("T")[0] || ts.split(" ")[0];
-      if (parsed && parsed.match(/\d{4}-\d{2}-\d{2}/)) {
-        dateStr = parsed;
-      }
+    // Parse date header: "--- 2024-01-01 ---"
+    const dateHeaderMatch = msg.match(/^---\s*(\d{4}-\d{2}-\d{2})\s*---$/);
+    if (dateHeaderMatch) {
+      currentDate = dateHeaderMatch[1];
+      continue;
     }
 
-    // Parse different log formats
-
-    // Format: "日期: YYYY-MM-DD, 资产: XXX"
-    const dateAssetMatch = msg.match(/日期[：:]\s*(\d{4}-\d{2}-\d{2}).*资产[：:]\s*([\d,.]+)/);
-    if (dateAssetMatch) {
-      dateStr = dateAssetMatch[1];
-      const asset = parseFloat(dateAssetMatch[2].replace(/,/g, ""));
-      if (!isNaN(asset) && !seenDates.has(dateStr)) {
-        seenDates.add(dateStr);
+    // Parse portfolio summary: "Portfolio: X positions, Cash: XXX, Total: XXX"
+    const portfolioMatch = msg.match(/Portfolio:\s*\d+\s*positions?,\s*Cash:\s*([\d,.]+),\s*Total:\s*([\d,.]+)/i);
+    if (portfolioMatch && currentDate) {
+      const total = parseFloat(portfolioMatch[2].replace(/,/g, ""));
+      if (!isNaN(total) && !seenDates.has(currentDate)) {
+        seenDates.add(currentDate);
+        currentAsset = total;
         equityCurve.push({
-          date: dateStr.slice(5), // MM-DD format
-          value: asset,
+          date: currentDate.slice(5), // MM-DD format
+          value: total,
+          cash: parseFloat(portfolioMatch[1].replace(/,/g, "")),
         });
       }
     }
 
-    // Format: "[YYYY-MM-DD] 总资产: XXX"
-    const bracketAssetMatch = msg.match(/\[(\d{4}-\d{2}-\d{2})\].*总资产[：:]\s*([\d,.]+)/);
-    if (bracketAssetMatch) {
-      dateStr = bracketAssetMatch[1];
-      const asset = parseFloat(bracketAssetMatch[2].replace(/,/g, ""));
-      if (!isNaN(asset) && !seenDates.has(dateStr)) {
-        seenDates.add(dateStr);
-        equityCurve.push({
-          date: dateStr.slice(5),
-          value: asset,
-        });
-      }
-    }
-
-    // Parse buy/sell actions
-    // Format: "买入 CODE @ PRICE, 数量: SHARES" or "卖出 CODE..."
-    const buyMatch = msg.match(/买入\s*([A-Z0-9.]+)\s*[@＠]\s*([\d.]+).*(?:数量|股数)[：:]\s*([\d,]+)/);
-    const sellMatch = msg.match(/卖出\s*([A-Z0-9.]+)\s*[@＠]\s*([\d.]+).*(?:数量|股数)[：:]\s*([\d,]+)/);
-
-    if (buyMatch) {
-      const code = buyMatch[1];
-      const price = parseFloat(buyMatch[2]);
-      const shares = parseInt(buyMatch[3].replace(/,/g, ""));
+    // Parse executed trades: "EXECUTED BUY: CODE x SHARES @ PRICE"
+    const executedBuyMatch = msg.match(/EXECUTED\s+BUY:\s*([A-Za-z0-9.]+)\s*x\s*([\d,]+)\s*@\s*([\d.]+)/i);
+    if (executedBuyMatch) {
+      const code = executedBuyMatch[1];
+      const shares = parseInt(executedBuyMatch[2].replace(/,/g, ""));
+      const price = parseFloat(executedBuyMatch[3]);
       tradeRecords.push({
-        date: dateStr || formatDate(ts).slice(0, 10),
+        date: currentDate ? currentDate.slice(5) : "",
         action: "BUY",
         code,
         price,
         shares,
         amount: price * shares,
-        asset: equityCurve.length > 0 ? equityCurve[equityCurve.length - 1].value : initialCapital,
+        asset: currentAsset,
       });
     }
 
-    if (sellMatch) {
-      const code = sellMatch[1];
-      const price = parseFloat(sellMatch[2]);
-      const shares = parseInt(sellMatch[3].replace(/,/g, ""));
-      // Try to find profit/loss info
-      const profitMatch = msg.match(/(?:盈亏|收益)[：:]\s*([-+]?[\d,.]+)/);
-      const change = profitMatch ? parseFloat(profitMatch[1].replace(/,/g, "")) : undefined;
+    // Parse executed sell: "EXECUTED SELL: CODE x SHARES @ PRICE"
+    const executedSellMatch = msg.match(/EXECUTED\s+SELL:\s*([A-Za-z0-9.]+)\s*x\s*([\d,]+)\s*@\s*([\d.]+)/i);
+    if (executedSellMatch) {
+      const code = executedSellMatch[1];
+      const shares = parseInt(executedSellMatch[2].replace(/,/g, ""));
+      const price = parseFloat(executedSellMatch[3]);
+      // Try to find P&L info from nearby logs
+      const pnlMatch = msg.match(/P&L:\s*([-+]?[\d.]+)%/);
+      const change = pnlMatch ? parseFloat(pnlMatch[1]) : undefined;
       tradeRecords.push({
-        date: dateStr || formatDate(ts).slice(0, 10),
+        date: currentDate ? currentDate.slice(5) : "",
         action: "SELL",
         code,
         price,
         shares,
         amount: price * shares,
-        asset: equityCurve.length > 0 ? equityCurve[equityCurve.length - 1].value : initialCapital,
+        asset: currentAsset,
         change,
       });
     }
 
-    // Also capture simple asset updates without trades
-    const simpleAssetMatch = msg.match(/(?:当前|总)资产[：:]\s*([\d,.]+)/);
-    if (simpleAssetMatch && !dateAssetMatch && !bracketAssetMatch) {
-      const asset = parseFloat(simpleAssetMatch[1].replace(/,/g, ""));
-      if (!isNaN(asset) && dateStr && !seenDates.has(dateStr)) {
-        seenDates.add(dateStr);
+    // Also support Chinese format: "买入/卖出 CODE @ PRICE, 数量: SHARES"
+    const buyMatchCN = msg.match(/买入\s*([A-Za-z0-9.]+)\s*[@＠]\s*([\d.]+).*(?:数量|股数)[：:]\s*([\d,]+)/);
+    const sellMatchCN = msg.match(/卖出\s*([A-Za-z0-9.]+)\s*[@＠]\s*([\d.]+).*(?:数量|股数)[：:]\s*([\d,]+)/);
+
+    if (buyMatchCN) {
+      const code = buyMatchCN[1];
+      const price = parseFloat(buyMatchCN[2]);
+      const shares = parseInt(buyMatchCN[3].replace(/,/g, ""));
+      tradeRecords.push({
+        date: currentDate ? currentDate.slice(5) : "",
+        action: "BUY",
+        code,
+        price,
+        shares,
+        amount: price * shares,
+        asset: currentAsset,
+      });
+    }
+
+    if (sellMatchCN) {
+      const code = sellMatchCN[1];
+      const price = parseFloat(sellMatchCN[2]);
+      const shares = parseInt(sellMatchCN[3].replace(/,/g, ""));
+      const profitMatch = msg.match(/(?:盈亏|收益)[：:]\s*([-+]?[\d,.]+)/);
+      const change = profitMatch ? parseFloat(profitMatch[1].replace(/,/g, "")) : undefined;
+      tradeRecords.push({
+        date: currentDate ? currentDate.slice(5) : "",
+        action: "SELL",
+        code,
+        price,
+        shares,
+        amount: price * shares,
+        asset: currentAsset,
+        change,
+      });
+    }
+
+    // Fallback: "日期: YYYY-MM-DD, 资产: XXX" or "Total: XXX"
+    const dateAssetMatch = msg.match(/日期[：:]\s*(\d{4}-\d{2}-\d{2}).*资产[：:]\s*([\d,.]+)/);
+    if (dateAssetMatch) {
+      const date = dateAssetMatch[1];
+      const asset = parseFloat(dateAssetMatch[2].replace(/,/g, ""));
+      if (!isNaN(asset) && !seenDates.has(date)) {
+        seenDates.add(date);
+        currentAsset = asset;
         equityCurve.push({
-          date: dateStr.slice(5),
+          date: date.slice(5),
           value: asset,
         });
       }
@@ -374,7 +402,7 @@ export function BacktestVisualization({
               <div className="flex h-full flex-col items-center justify-center text-muted-foreground">
                 <Activity className="mb-2 h-8 w-8 animate-pulse" />
                 <p className="text-sm">等待回测数据...</p>
-                <p className="mt-1 text-xs">资产曲线将在回测开始后显示</p>
+                <p className="mt-1 text-xs">资产曲线将在回测开始后��示</p>
               </div>
             )}
           </div>
