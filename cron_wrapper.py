@@ -26,7 +26,7 @@ def run_task_on_trade_day():
     # 2. 调用你之前的脚本
     try:
         # 这里替换成你实际的 python 路径和脚本路径
-        cmd = ["python", "scripts/daily_selector.py"]
+        cmd = ["python", "scripts/daily_selector.py", "--force-update"]
         subprocess.run(cmd, check=True)
         logging.info("✅ 任务运行成功")
     except subprocess.CalledProcessError as e:

@@ -13,6 +13,7 @@ import { PerformanceCharts } from "@/components/results/performance-charts";
 import { MultiStrategyComparison } from "@/components/results/multi-strategy-comparison";
 import { BestStocks } from "@/components/results/best-stocks";
 import { PayloadViewerDialog } from "@/components/shared/payload-viewer-dialog";
+import { EquityCurveChart } from "@/components/results/equity-curve-chart";
 import { Loader2 } from "lucide-react";
 
 export default function ResultsPage() {
@@ -87,6 +88,15 @@ export default function ResultsPage() {
             analysis={analysis}
             trades={trades}
             benchmark={benchmark}
+          />
+
+          {/* 资产曲线 + 基准曲线 */}
+          <EquityCurveChart
+            equityCurve={equityCurve}
+            benchmark={benchmark}
+            startDate={backtestDetail?.start_date || ""}
+            endDate={backtestDetail?.end_date || ""}
+            initialCapital={backtestDetail?.payload?.initial_capital}
           />
 
           {/* Loading state for analysis */}

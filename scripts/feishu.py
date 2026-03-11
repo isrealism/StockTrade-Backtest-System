@@ -887,19 +887,51 @@ class FeishuCallbackServer:
 
         # ── 返回最新信号卡片 ──────────────────────────────────────────────
         elif action_tag == "back_to_signal":
-            # 优先用内存缓存；缓存没有时从当天信号文件重建
+            # 优先用内存缓存（仅在同进程内有效，cron 模式下通常为 None）
             if self._last_signal_card:
                 return {"card": self._last_signal_card}
 
-            today    = date.today().isoformat()
+            # ── 降级：扫描信号目录，找最新一天的 all.txt ────────────────
             name_map = load_name_map()
-            results  = load_signal_for_date(today)
-            if results:
-                card = _signal_card(results, today, name_map)
-                self._last_signal_card = card["card"]   # 顺便缓存
-                return {"card": card["card"]}
+            latest_date = None
 
-            return {"toast": {"type": "info", "content": "暂无缓存信号，请等待下次推送"}}
+            if SIGNAL_DIR.exists():
+                all_files = sorted(SIGNAL_DIR.glob("*-all.txt"), reverse=True)
+                if all_files:
+                    # 文件名格式：YYYY-MM-DD-all.txt，取文件名前10位
+                    latest_date = all_files[0].name[:10]
+
+            if not latest_date:
+                return {"toast": {"type": "info", "content": "暂无信号记录，请等待下次推送"}}
+
+            raw_results = load_signal_for_date(latest_date)
+            if not raw_results:
+                return {"toast": {"type": "info", "content": f"信号文件为空（{latest_date}）"}}
+
+            # 按当前用户的群配置对齐战法显示（与 submit_query 逻辑一致）
+            try:
+                from scripts.daily_selector import _load_selector_config, BUY_CONFIG as _BUY_CONFIG
+                instance_path = ROOT / "configs" / "instances" / f"selectors_{target_id}.json"
+                conf_path = instance_path if instance_path.exists() else _BUY_CONFIG
+                active_selectors = _load_selector_config(conf_path)
+            except Exception as e:
+                logger.warning("加载配置失败，使用原始结果：%s", e)
+                active_selectors = []
+
+            if active_selectors:
+                aligned_results: Dict[str, List[str]] = {"__all__": raw_results.get("__all__", [])}
+                for s in active_selectors:
+                    if not s.get("activate", True):
+                        continue
+                    alias = s.get("alias")
+                    if alias:
+                        aligned_results[alias] = raw_results.get(alias, [])
+            else:
+                aligned_results = raw_results
+
+            card = _signal_card(aligned_results, latest_date, name_map)
+            self._last_signal_card = card["card"]   # 顺便写入缓存，同会话内复用
+            return {"card": card["card"]}
 
         else:
             logger.warning("未知 action_tag：%s", action_tag)

@@ -185,30 +185,68 @@ def get_trade_dates_in_range(start_ts: str, end_ts: str) -> List[str]:
         raise ValueError(f"无法获取 {start_ts}~{end_ts} 的交易日历")
     return sorted(cal_df["cal_date"].tolist())
 
-
 def _fetch_range_bars(code: str, start_ts: str, end_ts: str) -> Optional[pd.DataFrame]:
     """
     拉取单只股票 [start_ts, end_ts] 区间的 OHLCV（最多重试 3 次）。
+    使用 pro.daily + pro.adj_factor 实现前复权（qfq），与 fetch_kline 逻辑一致。
     start_ts / end_ts: YYYYMMDD
     返回 DataFrame(columns=[code, date, open, close, high, low, volume]) 或 None
     """
     ts_code = _to_ts_code(code)
     for attempt in range(1, 4):
         try:
-            df = ts.pro_bar(
-                ts_code=ts_code, adj="qfq",
-                start_date=start_ts, end_date=end_ts,
-                freq="D", api=pro,
+            # ── 1. 拉取原始日线（不复权）────────────────────────────────
+            df = pro.daily(
+                ts_code=ts_code,
+                start_date=start_ts,
+                end_date=end_ts,
             )
             if df is None or df.empty:
                 return None
+
             df = df.rename(columns={"trade_date": "date", "vol": "volume"})
             df = df[["date", "open", "close", "high", "low", "volume"]].copy()
-            df["date"]   = pd.to_datetime(df["date"]).dt.strftime("%Y-%m-%d")
-            df["code"]   = code
             for c in ["open", "close", "high", "low", "volume"]:
                 df[c] = pd.to_numeric(df[c], errors="coerce")
-            return df.sort_values("date").reset_index(drop=True)
+            df = df.sort_values("date").reset_index(drop=True)
+
+            # ── 2. 拉取复权因子────────────────────────────────────────────
+            # 多取一点历史确保 adj_factor 覆盖区间（有时最新一天可能有延迟）
+            adj_start = (
+                pd.to_datetime(start_ts, format="%Y%m%d") - pd.Timedelta(days=10)
+            ).strftime("%Y%m%d")
+            adj_df = pro.adj_factor(
+                ts_code=ts_code,
+                start_date=adj_start,
+                end_date=end_ts,
+            )
+
+            # ── 3. 计算前复权（qfq）─────────────────────────────────────
+            # qfq = 原始价 × (当日复权因子 / 最新复权因子)
+            # 若拉不到复权因子则降级使用原始价（停牌/退市等极端情况）
+            if adj_df is not None and not adj_df.empty:
+                adj_df = adj_df.rename(columns={"trade_date": "date"})[["date", "adj_factor"]].copy()
+                adj_df["adj_factor"] = pd.to_numeric(adj_df["adj_factor"], errors="coerce")
+                adj_df = adj_df.sort_values("date").reset_index(drop=True)
+
+                latest_factor = adj_df["adj_factor"].iloc[-1]   # 最新复权因子（最大日期）
+                df = df.merge(adj_df, on="date", how="left")
+
+                # 未匹配到 adj_factor 的行（如刚上市）用最近可用因子前向填充
+                df["adj_factor"] = df["adj_factor"].ffill().bfill().fillna(latest_factor)
+
+                ratio = df["adj_factor"] / latest_factor
+                for c in ["open", "close", "high", "low"]:
+                    df[c] = (df[c] * ratio).round(4)
+
+                df = df.drop(columns=["adj_factor"])
+            else:
+                logger.warning("%s 未获取到复权因子，使用原始价格", code)
+
+            df["date"] = pd.to_datetime(df["date"]).dt.strftime("%Y-%m-%d")
+            df["code"] = code
+            return df.reset_index(drop=True)
+
         except Exception as e:
             if _looks_like_ip_ban(e):
                 logger.error("%s 第 %d 次拉取疑似限流，冷却 %d 秒", code, attempt, COOLDOWN_SECS)
@@ -217,7 +255,6 @@ def _fetch_range_bars(code: str, start_ts: str, end_ts: str) -> Optional[pd.Data
                 time.sleep(15 * attempt)
     logger.error("%s 三次拉取均失败，跳过", code)
     return None
-
 
 def _upsert_ohlcv_df(df: pd.DataFrame, db_path: str) -> None:
     """
@@ -680,10 +717,10 @@ def main() -> None:
     # ── 性能参数 ──────────────────────────────────────────────────────────
     parser.add_argument("--lookback-days",    type=int, default=250,
                                               help="指标计算历史窗口，天数（默认 250，覆盖 MA114）")
-    parser.add_argument("--workers",          type=int, default=8,
-                                              help="Tushare 拉取并发线程数（默认 8）")
-    parser.add_argument("--ind-workers",      type=int, default=6,
-                                              help="指标计算并发线程数（默认 6）")
+    parser.add_argument("--workers",          type=int, default=20,
+                                              help="Tushare 拉取并发线程数（默认 20）")
+    parser.add_argument("--ind-workers",      type=int, default=24,
+                                              help="指标计算并发线程数（默认 24）")
     # ── 控制参数 ──────────────────────────────────────────────────────────
     parser.add_argument("--skip-after-close", action="store_true",
                                               help="跳过收盘时间检查（测试 / 补跑历史时使用）")
