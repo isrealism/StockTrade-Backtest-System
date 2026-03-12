@@ -24,6 +24,23 @@ import {
   type RotationConfig,
 } from "./score-rotation-config";
 import {
+  StockFilterDialog,
+  defaultStockFilterConfig,
+  type StockFilterConfig,
+} from "./stock-filter-dialog";
+
+function countTotal(cfg: StockFilterConfig): number {
+  const active = (obj: Record<string, boolean>) => Object.values(obj).filter(Boolean).length;
+  return (
+    cfg.mvPresets.length + (cfg.mvCustom.enabled ? 1 : 0) +
+    cfg.selectedIndex.length + cfg.selectedIndustries.length +
+    cfg.selectedMarkets.length +
+    active(cfg.qualityFilters) + active(cfg.valuationFilters) +
+    active(cfg.financialFilters) +
+    (cfg.liquidityPreset !== "标准" || cfg.liquidityCustom ? 1 : 0)
+  );
+}
+import {
   createBacktest,
   type BacktestPayload,
   type SelectorConfig as SelectorType,
@@ -39,6 +56,7 @@ import {
   Settings2,
   ChevronDown,
   ChevronRight,
+  SlidersHorizontal,
 } from "lucide-react";
 
 interface BacktestFormProps {
@@ -74,6 +92,8 @@ export function BacktestForm({ selectors, sellStrategies }: BacktestFormProps) {
   // ── 股票池 ────────────────────────────────────────────────────────
   const [stockPoolType, setStockPoolType] = useState("all");
   const [customCodes, setCustomCodes] = useState("");
+  const [filterDialogOpen, setFilterDialogOpen] = useState(false);
+  const [stockFilterConfig, setStockFilterConfig] = useState<StockFilterConfig>(defaultStockFilterConfig());
 
   // ── 选股策略 ──────────────────────────────────────────────────────
   const [selectorList, setSelectorList] = useState(
@@ -306,25 +326,64 @@ export function BacktestForm({ selectors, sellStrategies }: BacktestFormProps) {
                 </div>
                 <div className="space-y-2">
                   <Label>股票池</Label>
-                  <Select value={stockPoolType} onValueChange={setStockPoolType}>
+                  <Select
+                    value={stockPoolType}
+                    onValueChange={(v) => {
+                      setStockPoolType(v);
+                      if (v === "filter") setFilterDialogOpen(true);
+                    }}
+                  >
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">全量股票</SelectItem>
                       <SelectItem value="list">自定义股票代码</SelectItem>
+                      <SelectItem value="filter">静态约束配置</SelectItem>
                     </SelectContent>
                   </Select>
+
+                  {/* 自定义代码输入 */}
                   {stockPoolType === "list" && (
                     <textarea
                       className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                      placeholder={
-                        "输入股票代码, 逗号或换行分隔\n例如: 000001, 000002, 600000"
-                      }
+                      placeholder={"输入股票代码, 逗号或换行分隔\n例如: 000001, 000002, 600000"}
                       value={customCodes}
                       onChange={(e) => setCustomCodes(e.target.value)}
                     />
                   )}
+
+                  {/* 静态约束配置摘要 + 编辑入口 */}
+                  {stockPoolType === "filter" && (
+                    <div className="flex items-center justify-between rounded-md border border-primary/20 bg-primary/5 px-3 py-2">
+                      <p className="truncate text-xs text-muted-foreground">
+                        {countTotal(stockFilterConfig) > 0
+                          ? `已配置 ${countTotal(stockFilterConfig)} 项约束`
+                          : "未配置筛选条件"}
+                      </p>
+                      <button
+                        onClick={() => setFilterDialogOpen(true)}
+                        className="ml-2 flex shrink-0 items-center gap-1 text-xs text-primary hover:text-primary/80"
+                      >
+                        <SlidersHorizontal className="h-3 w-3" />
+                        编辑
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Dialog */}
+                  <StockFilterDialog
+                    open={filterDialogOpen}
+                    onOpenChange={(o) => {
+                      setFilterDialogOpen(o);
+                      // If user closes without confirming and nothing was set, revert to "all"
+                      if (!o && stockPoolType === "filter" && countTotal(stockFilterConfig) === 0) {
+                        setStockPoolType("all");
+                      }
+                    }}
+                    value={stockFilterConfig}
+                    onChange={setStockFilterConfig}
+                  />
                 </div>
               </CardContent>
             </Card>
