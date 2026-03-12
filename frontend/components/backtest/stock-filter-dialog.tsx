@@ -53,9 +53,9 @@ const MARKET_TYPES = [
 ];
 
 const QUALITY_FILTERS = [
-  { id: "no_st", label: "排除 ST 股", desc: "剔除ST/*ST股票", default: true },
-  { id: "no_new", label: "排除次新股", desc: "上市不足6个月", default: true },
-  { id: "no_halt", label: "排除停牌股", desc: "当前处于停牌状态", default: true },
+  { id: "no_st", label: "排除 ST 股", desc: "剔除ST/*ST股票", default: false },
+  { id: "no_new", label: "排除次新股", desc: "上市不足6个月", default: false },
+  { id: "no_halt", label: "排除停牌股", desc: "当前处于停牌状态", default: false },
   { id: "no_limit", label: "排除连续涨跌停", desc: "过去20日涨跌停≥5次", default: false },
   { id: "no_loss", label: "排除连亏股", desc: "连续2年净利润为负", default: false },
   { id: "no_audit", label: "排除非标审计", desc: "审计意见非标准无保留", default: false },
@@ -122,8 +122,8 @@ export function defaultStockFilterConfig(): StockFilterConfig {
     selectedIndex: [],
     selectedIndustries: [],
     selectedMarkets: [],
-    qualityFilters: Object.fromEntries(QUALITY_FILTERS.map((f) => [f.id, f.default])),
-    liquidityPreset: "标准",
+    qualityFilters: Object.fromEntries(QUALITY_FILTERS.map((f) => [f.id, false])),
+    liquidityPreset: "",
     liquidityCustom: "",
     valuationFilters: {},
     financialFilters: {},
