@@ -9,6 +9,13 @@
       "combination_logic": "ANY",
       "strategies": [
         {
+          "class": "EarlyExitStrategy",
+          "params": {
+            "consecutive_days": 5,
+            "daily_upper": 0.03
+          }
+        },
+        {
           "class": "PercentageTrailingStopStrategy",
           "params": {
             "trailing_pct": 0.08,
@@ -35,13 +42,6 @@
       "name": "aggressive_atr",
       "combination_logic": "ANY",
       "strategies": [
-        {
-          "class": "EarlyExitStrategy",
-          "params": {
-            "consecutive_days": 3,
-            "daily_upper": 0.03
-          }
-        },
         {
           "class": "ATRTrailingStopStrategy",
           "params": {
@@ -72,7 +72,7 @@
         {
           "class": "EarlyExitStrategy",
           "params": {
-            "consecutive_days": 3,
+            "consecutive_days": 5,
             "daily_upper": 0.03
           }
         },
@@ -110,13 +110,6 @@
       "combination_logic": "ANY",
       "strategies": [
         {
-          "class": "EarlyExitStrategy",
-          "params": {
-            "consecutive_days": 3,
-            "daily_upper": 0.03
-          }
-        },
-        {
           "class": "AdaptiveVolatilityExitStrategy",
           "params": {
             "volatility_period": 20,
@@ -148,13 +141,6 @@
       "name": "chandelier_3r",
       "combination_logic": "ANY",
       "strategies": [
-        {
-          "class": "EarlyExitStrategy",
-          "params": {
-            "consecutive_days": 3,
-            "daily_upper": 0.03
-          }
-        },
         {
           "class": "ChandelierStopStrategy",
           "params": {
@@ -188,7 +174,7 @@
         {
           "class": "EarlyExitStrategy",
           "params": {
-            "consecutive_days": 3,
+            "consecutive_days": 5,
             "daily_upper": 0.03
           }
         },
@@ -223,13 +209,6 @@
       "name": "simple_percentage_stop",
       "combination_logic": "ANY",
       "strategies": [
-        {
-          "class": "EarlyExitStrategy",
-          "params": {
-            "consecutive_days": 3,
-            "daily_upper": 0.03
-          }
-        },
         {
           "class": "PercentageTrailingStopStrategy",
           "params": {

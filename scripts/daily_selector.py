@@ -856,10 +856,10 @@ def main() -> None:
                     extra = _build_feishu_extra(end_results)
 
                 if args.dry_run:
-                    logger.info("[dry-run] {target_id} 飞书推送（%s）：\n%s", end_date, extra)
+                    logger.info(f"[dry-run] {target_id} 飞书推送（%s）：\n%s", end_date, extra)
                 else:
                     send_signal(end_results, trade_date=end_date,chat_id=target_id)
-                    logger.info("{target_id} 飞书推送完成 ✅（%s）", end_date)
+                    logger.info(f" {target_id} 飞书推送完成 ✅（%s）", end_date)
 
     except Exception as e:
         logger.error("任务异常：\n%s", traceback.format_exc())

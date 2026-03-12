@@ -75,9 +75,9 @@ class EarlyExitStrategy(SellStrategy):
 
     注意事项
     --------
-    - 只看每日日内收益，不看从入场到当天的累计盈亏
-    - 需要 hist_data 中包含入场日期之后的所有日期（含当日）
-    - 不满足"已持仓 consecutive_days 天"时本策略不触发，避免误杀第一天
+    - 只在持仓满 consecutive_days 天时做一次性判断，此后不再触发
+    - 若前 N 天内出现任何一天涨幅超过 daily_upper，视为已有动能，永不再以横盘理由退出
+    - 只看入场后第 1～N 天的固定窗口，非滚动检测
     """
 
     def __init__(
@@ -107,22 +107,21 @@ class EarlyExitStrategy(SellStrategy):
         **kwargs,
     ) -> Tuple[bool, str]:
         """
-        检查最近 consecutive_days 天的每日涨幅是否全部处于横盘区间。
+        检查入场后前 consecutive_days 天是否全程横盘。
 
         触发条件（同时满足）：
-          1. 已持仓天数 >= consecutive_days（确保有足够的观察窗口）
-          2. 最近 consecutive_days 天的每日涨幅均在 [daily_lower, daily_upper] 内
+        1. 已持仓天数恰好 == consecutive_days（只在第 N 天判断一次，之后不再触发）
+        2. 入场后第 1～N 天的每日涨幅均 <= daily_upper
         """
-        # ── 条件 1：持仓时间不足，不触发 ──────────────────────────────
-        if position.days_held < self.consecutive_days:
+        # ── 条件 1：只在恰好持仓满 N 天时判断，早了不判断，晚了也不再判断 ──
+        if position.days_held != self.consecutive_days:
             return False, ""
 
-        # ── 截取入场日以来的数据 ───────────────────────────────────────
+        # ── 截取入场日以来的数据 ──────────────────────────────────────────
         entry_date = position.entry_date
         if hasattr(entry_date, "date"):
             entry_date = entry_date.date()
 
-        # hist_data 中找到入场日或其后最近一行
         if "date" in hist_data.columns:
             date_col = pd.to_datetime(hist_data["date"])
         else:
@@ -131,17 +130,15 @@ class EarlyExitStrategy(SellStrategy):
         entry_ts = pd.Timestamp(entry_date)
         since_entry = hist_data[date_col >= entry_ts].copy()
 
-        # 需要 consecutive_days + 1 行才能算出 consecutive_days 个日涨幅
-        # （第一行作为前一日基准，后续 consecutive_days 行各算一次）
+        # 需要 consecutive_days + 1 行：第 0 行作为基准，后续 N 行各算一次涨幅
         required_rows = self.consecutive_days + 1
         if len(since_entry) < required_rows:
             return False, ""
 
-        # ── 取最近 (consecutive_days + 1) 行，计算每日涨幅 ───────────
-        window = since_entry.tail(required_rows)
+        # ── 取入场后完整的前 N 天窗口（固定窗口，非滚动）────────────────
+        window = since_entry.iloc[:required_rows]
         closes = window["close"].values.astype(float)
 
-        # daily_returns[i] = (closes[i+1] - closes[i]) / closes[i]
         prev_closes = closes[:-1]
         curr_closes = closes[1:]
 
@@ -152,33 +149,20 @@ class EarlyExitStrategy(SellStrategy):
                 np.nan,
             )
 
-        # 有 NaN 说明数据有问题，跳过
         if np.any(np.isnan(daily_returns)):
             return False, ""
 
-        # ── 判断：全部日涨幅都在横盘区间内 ──────────────────────────
-        all_sideways = bool(
-            np.all(daily_returns <= self.daily_upper)
-        )
+        # ── 判断：前 N 天每日涨幅均未突破上界 ───────────────────────────
+        all_sideways = bool(np.all(daily_returns <= self.daily_upper))
 
         if all_sideways:
             current_close = float(current_data["close"])
             cumulative_pnl = position.unrealized_pnl_pct(current_close) * 100
-
-            # 格式化每日涨幅，方便 debug
             returns_str = ", ".join(f"{r*100:+.2f}%" for r in daily_returns)
-
             return True, (
-                f"EarlyExit: 连续 {self.consecutive_days} 天横盘 "
-                f"[{returns_str}] "
-                f" 涨幅均在 {self.daily_upper*100:.1f}%] 内 "
-                f"(累计 P&L: {cumulative_pnl:+.2f}%)"
+                f"连续{self.consecutive_days}天横盘"
+                f" [{returns_str}]"
+                f" (涨幅均≤{self.daily_upper*100:.1f}%, P&L: {cumulative_pnl:+.2f}%)"
             )
 
         return False, ""
-
-    def get_name(self) -> str:
-        return (
-            f"EarlyExit({self.consecutive_days}d×"
-            f"[{self.daily_upper*100:.1f}%])"
-        )

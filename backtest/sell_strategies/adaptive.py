@@ -104,7 +104,12 @@ class AdaptiveVolatilityExitStrategy(SellStrategy):
 
         if current_close <= stop_level:
             pnl_pct = position.unrealized_pnl_pct(current_close) * 100
-            return True, f"Adaptive Stop ({regime}, {stop_pct*100:.1f}%, vol_pct={vol_percentile:.0f}) hit at {current_close:.2f} (stop: {stop_level:.2f}, P&L: {pnl_pct:+.2f}%)"
+            regime_cn = {"Low Vol": "低波动", "Normal Vol": "正常波动", "High Vol": "高波动"}[regime]
+            return True, (
+                f"AdaptiveVolatility [{regime_cn}] 止损 "
+                f"(止损比={stop_pct*100:.1f}%, 波动率分位={vol_percentile:.0f}%, "
+                f"止损价={stop_level:.2f}, P&L: {pnl_pct:+.2f}%)"
+            )
 
         return False, ""
 

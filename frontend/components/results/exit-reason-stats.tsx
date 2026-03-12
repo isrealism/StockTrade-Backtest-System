@@ -20,13 +20,20 @@ function parseExitReason(raw: string): string {
   if (!raw) return "未知";
   if (raw.includes("FullProfitTarget") || raw.includes("Profit Target")) return "止盈";
   if (raw.includes("TrailingStop") || raw.includes("Trailing Stop")) return "追踪止损";
-  if (raw.includes("TimedExit") || raw.includes("Holding Period")) return "超时退出";
+  if (raw.includes("TimedExit") || raw.includes("Holding Period") || raw.includes("Max Holding")) return "超时退出";
   if (raw.includes("StopLoss") || raw.includes("Stop Loss")) return "止损";
-  if (raw.includes("KDJ") || raw.includes("BBI") || raw.includes("MA")) return "指标信号";
+  // 指标退出细化
+  if (raw.includes("KDJ") || raw.includes("KDJOverbought")) return "KDJ超买退出";
+  if (raw.includes("BBI") || raw.includes("BBIReversal")) return "BBI反转退出";
+  if (raw.includes("ZXLines") || raw.includes("ZX Lines")) return "ZX线死叉退出";
+  if (raw.includes("MADeathCross") || raw.includes("MA Death")) return "均线死叉退出";
+  // 横盘退出
+  if (raw.includes("横盘") || raw.includes("EarlyExit")) return "连续横盘退出";
+  // 其他止损
   if (raw.includes("Chandelier")) return "吊灯止损";
+  if (raw.includes("AdaptiveVolatility")) return "自适应波动率止损";
   if (raw.includes("ATR")) return "ATR止损";
-  if (raw.includes("ZXLines")) return "ZX线止损";
-  if (raw.includes("Volatility")) return "波动率止损";
+  if (raw.includes("rotation_replace")) return "换仓替换";
   return "其他";
 }
 

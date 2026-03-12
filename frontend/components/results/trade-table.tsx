@@ -38,9 +38,42 @@ function parseExitReasonCategory(raw: string): string {
   if (!raw) return "未知";
   if (raw.includes("FullProfitTarget") || raw.includes("Profit Target")) return "止盈";
   if (raw.includes("TrailingStop") || raw.includes("Trailing Stop")) return "追踪止损";
-  if (raw.includes("TimedExit") || raw.includes("Holding Period")) return "超时退出";
+  if (raw.includes("TimedExit") || raw.includes("Holding Period") || raw.includes("Max Holding")) return "超时退出";
   if (raw.includes("StopLoss") || raw.includes("Stop Loss")) return "止损";
+  // 指标退出 - 细化区分
+  if (raw.includes("KDJ") || raw.includes("KDJOverbought")) return "KDJ超买退出";
+  if (raw.includes("BBI") || raw.includes("BBIReversal")) return "BBI反转退出";
+  if (raw.includes("ZXLines") || raw.includes("ZX Lines")) return "ZX线死叉退出";
+  if (raw.includes("MADeathCross") || raw.includes("MA Death")) return "均线死叉退出";
+  // 横盘退出
+  if (raw.includes("横盘") || raw.includes("EarlyExit")) return "连续横盘退出";
+  // 其他止损类
+  if (raw.includes("Chandelier")) return "吊灯止损";
+  if (raw.includes("ATR")) return "ATR止损";
+  if (raw.includes("Volatility")) return "波动率止损";
+  if (raw.includes("rotation_replace")) return "换仓替换";
   return "其他";
+}
+
+/** 从原始退出原因字符串中提取简短的细节标注 */
+function formatExitReasonDetail(raw: string): string {
+  if (!raw) return "";
+  // 横盘退出：直接截取"连续N天横盘"部分
+  const sidewaysMatch = raw.match(/连续\d+天横盘/);
+  if (sidewaysMatch) return sidewaysMatch[0];
+  // KDJ: 提取 J 值信息
+  const kdjMatch = raw.match(/J=([\d.]+)\s*>\s*([\d.]+)/);
+  if (kdjMatch) return `KDJ J=${kdjMatch[1]}`;
+  // BBI: 提取连续下跌天数
+  const bbiMatch = raw.match(/(\d+)\s*consecutive declines/);
+  if (bbiMatch) return `BBI 连续${bbiMatch[1]}天下跌`;
+  // 止损/止盈：提取 P&L 百分比
+  const pnlMatch = raw.match(/P&L:\s*([+-][\d.]+%)/);
+  if (pnlMatch) return pnlMatch[1];
+  // AdaptiveVolatility: 提取波动区间和止损比
+  const adaptiveMatch = raw.match(/\[(.+?)\]\s*止损.*止损比=([\d.]+%)/);
+  if (adaptiveMatch) return `${adaptiveMatch[1]} 止损${adaptiveMatch[2]}`;
+  return "";
 }
 
 interface TradeTableProps {
@@ -240,8 +273,15 @@ export function TradeTable({ trades: rawTrades, backtestStartDate, backtestEndDa
                 <td className="whitespace-nowrap px-3 py-2 text-right font-mono text-muted-foreground">
                   {trade.holding_days}天
                 </td>
-                <td className="max-w-[120px] truncate whitespace-nowrap px-3 py-2 text-muted-foreground">
-                  {parseExitReasonCategory(trade.exit_reason)}
+                <td className="max-w-[180px] px-3 py-2">
+                  <div className="flex flex-col gap-0.5">
+                    <span className="text-xs font-medium text-foreground">
+                      {parseExitReasonCategory(trade.exit_reason)}
+                    </span>
+                    <span className="truncate text-[10px] text-muted-foreground" title={trade.exit_reason}>
+                      {formatExitReasonDetail(trade.exit_reason)}
+                    </span>
+                  </div>
                 </td>
                 <td className="whitespace-nowrap px-3 py-2 text-muted-foreground">
                   {trade.buy_strategy}

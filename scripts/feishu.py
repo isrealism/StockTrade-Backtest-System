@@ -571,10 +571,10 @@ def _post_bot(card: dict, open_id: Optional[str] = None) -> None:
             
             data = resp.json()
             if data.get("code") == 0:
-                print(f">>> 调试信息：发送成功！ID: {target}, 类型: {receive_id_type}")
+                #print(f">>> 调试信息：发送成功！ID: {target}, 类型: {receive_id_type}")
                 logger.info(f"发送成功！目标类型: {receive_id_type}, ID: {target}")
             else:
-                print(f">>> 调试信息：发送失败！错误码: {data.get('code')}, 详情: {data.get('msg')}")
+                #print(f">>> 调试信息：发送失败！错误码: {data.get('code')}, 详情: {data.get('msg')}")
                 logger.error(f"发送失败！错误码: {data.get('code')}, 消息: {data.get('msg')}")
                 
         except Exception as e:
